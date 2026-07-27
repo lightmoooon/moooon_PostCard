@@ -163,6 +163,20 @@
     font-weight: 600;
   }
 
+  .section-title { display: flex; align-items: center; gap: 8px; }
+  .star-toggle {
+    appearance: none;
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    line-height: 1;
+    padding: 2px;
+    cursor: pointer;
+    filter: grayscale(1);
+    opacity: 0.45;
+  }
+  .star-toggle.active { filter: none; opacity: 1; }
+
   /* ---- postcard grids ---- */
   .grid {
     display: grid;
@@ -170,7 +184,7 @@
     grid-template-columns: repeat(2, 1fr);
   }
   @media (min-width: 640px) {
-    .grid-recent { grid-template-columns: repeat(5, 1fr); }
+    .grid-recent { grid-template-columns: repeat(3, 1fr); }
     .grid-all { grid-template-columns: repeat(4, 1fr); }
   }
   .pc-card {
@@ -214,6 +228,15 @@
     font-size: 13px; line-height: 1; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
   }
+  .pc-card .fav-btn {
+    position: absolute; top: 6px; left: 6px;
+    width: 26px; height: 26px; border-radius: 50%;
+    border: none; background: rgba(0,0,0,0.45); color: #fff;
+    font-size: 14px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    filter: grayscale(1); opacity: 0.75;
+  }
+  .pc-card .fav-btn.active { filter: none; opacity: 1; }
   .empty-hint { color: var(--text-muted); font-size: 13px; padding: 20px 4px; text-align: center; }
 
   .row-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
@@ -380,7 +403,10 @@
     </header>
 
     <div class="card" id="recentSection">
-      <h2 id="recentSectionTitle">最近 10 張明信片</h2>
+      <h2 class="section-title">
+        <button type="button" class="star-toggle active" id="homeFavToggle" aria-label="切換顯示我的最愛/最近上傳">⭐</button>
+        <span id="recentSectionTitleText">我的最愛</span>
+      </h2>
       <div class="grid grid-recent" id="recentGrid"></div>
       <div class="row-actions">
         <button class="btn secondary" id="showAllBtn">顯示全部</button>
@@ -418,15 +444,15 @@
         </div>
         <div>
           <label>依寄出/收到</label>
-          <div class="check-group">
-            <label><input type="checkbox" id="filterSent"> 寄出</label>
-            <label><input type="checkbox" id="filterReceived"> 收到</label>
+          <div class="toggle-group">
+            <button type="button" class="toggle-btn" id="filterSentBtn">寄出</button>
+            <button type="button" class="toggle-btn" id="filterReceivedBtn">收到</button>
           </div>
         </div>
         <div>
           <label>其他</label>
-          <div class="check-group">
-            <label><input type="checkbox" id="filterUncategorized"> 未歸類</label>
+          <div class="toggle-group">
+            <button type="button" class="toggle-btn" id="filterUncategorizedBtn">未歸類</button>
           </div>
         </div>
         <div id="filterCustomTagWrap" style="display:none">
@@ -492,18 +518,18 @@
         </select>
       </div>
       <div class="field">
+        <button type="button" class="btn secondary" id="customTagBtn">＋ 自定義標籤</button>
+        <div id="customTagFieldWrap" style="display:none; margin-top:10px;">
+          <label for="customTagInput">自定義標籤</label>
+          <input type="text" id="customTagInput" placeholder="自行輸入分類用的標籤">
+        </div>
+      </div>
+      <div class="field">
         <label>寄出 / 收到 / 我的最愛</label>
         <div class="toggle-group">
           <button type="button" class="toggle-btn" id="sentBtn">已寄出</button>
           <button type="button" class="toggle-btn" id="receivedBtn">已收到</button>
           <button type="button" class="toggle-btn" id="favoriteBtn">⭐ 我的最愛</button>
-        </div>
-      </div>
-      <div class="field">
-        <button type="button" class="btn secondary" id="customTagBtn">＋ 自定義標籤</button>
-        <div id="customTagFieldWrap" style="display:none; margin-top:10px;">
-          <label for="customTagInput">自定義標籤</label>
-          <input type="text" id="customTagInput" placeholder="自行輸入分類用的標籤">
         </div>
       </div>
       <div class="field">
@@ -556,18 +582,18 @@
         </select>
       </div>
       <div class="field">
+        <button type="button" class="btn secondary" id="editCustomTagBtn">＋ 自定義標籤</button>
+        <div id="editCustomTagFieldWrap" style="display:none; margin-top:10px;">
+          <label for="editCustomTagInput">自定義標籤</label>
+          <input type="text" id="editCustomTagInput" placeholder="自行輸入分類用的標籤">
+        </div>
+      </div>
+      <div class="field">
         <label>寄出 / 收到 / 我的最愛</label>
         <div class="toggle-group">
           <button type="button" class="toggle-btn" id="editSentBtn">已寄出</button>
           <button type="button" class="toggle-btn" id="editReceivedBtn">已收到</button>
           <button type="button" class="toggle-btn" id="editFavoriteBtn">⭐ 我的最愛</button>
-        </div>
-      </div>
-      <div class="field">
-        <button type="button" class="btn secondary" id="editCustomTagBtn">＋ 自定義標籤</button>
-        <div id="editCustomTagFieldWrap" style="display:none; margin-top:10px;">
-          <label for="editCustomTagInput">自定義標籤</label>
-          <input type="text" id="editCustomTagInput" placeholder="自行輸入分類用的標籤">
         </div>
       </div>
       <div class="field">
@@ -623,15 +649,16 @@
   const allGrid = document.getElementById('allGrid');
   const allSection = document.getElementById('allSection');
   const recentSection = document.getElementById('recentSection');
-  const recentSectionTitle = document.getElementById('recentSectionTitle');
+  const recentSectionTitleText = document.getElementById('recentSectionTitleText');
+  const homeFavToggle = document.getElementById('homeFavToggle');
   const showAllBtn = document.getElementById('showAllBtn');
   const backToRecentBtn = document.getElementById('backToRecentBtn');
   const filterLocation = document.getElementById('filterLocation');
   const filterPikmin = document.getElementById('filterPikmin');
   const filterFloral = document.getElementById('filterFloral');
-  const filterSent = document.getElementById('filterSent');
-  const filterReceived = document.getElementById('filterReceived');
-  const filterUncategorized = document.getElementById('filterUncategorized');
+  const filterSentBtn = document.getElementById('filterSentBtn');
+  const filterReceivedBtn = document.getElementById('filterReceivedBtn');
+  const filterUncategorizedBtn = document.getElementById('filterUncategorizedBtn');
   const filterCustomTagWrap = document.getElementById('filterCustomTagWrap');
   const filterCustomTag = document.getElementById('filterCustomTag');
 
@@ -918,10 +945,10 @@
     if (pc.floral) tags.push(`<span class="tag">${escapeHtml(pc.floral)}</span>`);
     if (pc.sent) tags.push(`<span class="tag">已寄出</span>`);
     if (pc.received) tags.push(`<span class="tag">已收到</span>`);
-    if (pc.favorite) tags.push(`<span class="tag">⭐ 我的最愛</span>`);
     if (pc.customTag) tags.push(`<span class="tag">${escapeHtml(pc.customTag)}</span>`);
     return `
       <div class="pc-card" data-id="${escapeHtml(pc.id)}">
+        <button class="fav-btn${pc.favorite ? ' active' : ''}" type="button" data-fav="${escapeHtml(pc.id)}" aria-label="切換我的最愛">⭐</button>
         <button class="del-btn" type="button" data-del="${escapeHtml(pc.id)}" aria-label="刪除">✕</button>
         <img class="thumb" data-photo-for="${escapeHtml(pc.id)}" alt="明信片" src="">
         <div class="meta">
@@ -948,17 +975,30 @@
     });
   }
 
-  // Shows favorited postcards (up to 10) first; only falls back to the 10
-  // most recent uploads when there are no favorites at all.
-  function getHomeGridItems() {
-    const favorites = allPostcardsCache.filter(p => p.favorite).slice(0, 10);
-    if (favorites.length > 0) {
-      recentSectionTitle.textContent = '⭐ 我的最愛';
-      return favorites;
-    }
-    recentSectionTitle.textContent = '最近 10 張明信片';
-    return allPostcardsCache.slice(0, 10);
+  // The home section's star toggle picks between two modes: favorites
+  // (default) or the 10 most-recently uploaded postcards. Defaults to
+  // favorites mode regardless of whether any postcard is actually favorited
+  // yet — no automatic fallback; the user switches modes with the star.
+  let homeShowFavorites = true;
+
+  function homeEmptyHintHtml() {
+    return homeShowFavorites
+      ? `<div class="empty-hint">還沒有標記任何「我的最愛」,點卡片左上角的星星加入最愛,或點上方星星切換看最近上傳。</div>`
+      : `<div class="empty-hint">還沒有存過任何明信片,點右下角「存入明信片」開始吧。</div>`;
   }
+
+  function getHomeGridItems() {
+    recentSectionTitleText.textContent = homeShowFavorites ? '我的最愛' : '最近 10 張明信片';
+    homeFavToggle.classList.toggle('active', homeShowFavorites);
+    return homeShowFavorites
+      ? allPostcardsCache.filter(p => p.favorite).slice(0, 10)
+      : allPostcardsCache.slice(0, 10);
+  }
+
+  homeFavToggle.addEventListener('click', () => {
+    homeShowFavorites = !homeShowFavorites;
+    renderRecentFromCache();
+  });
 
   async function loadPostcards() {
     recentGrid.innerHTML = `<div class="empty-hint">載入中...</div>`;
@@ -971,7 +1011,7 @@
     }
     const recent = getHomeGridItems();
     if (recent.length === 0) {
-      recentGrid.innerHTML = `<div class="empty-hint">還沒有存過任何明信片,點右下角「存入明信片」開始吧。</div>`;
+      recentGrid.innerHTML = homeEmptyHintHtml();
     } else {
       recentGrid.innerHTML = recent.map(skeletonCardHtml).join('');
       hydrateThumbnails(recentGrid, recent);
@@ -986,8 +1026,9 @@
   }
   function applyFilters(list) {
     const fLoc = filterLocation.value, fPik = filterPikmin.value, fFlo = filterFloral.value;
-    const fSent = filterSent.checked, fReceived = filterReceived.checked;
-    const fUncat = filterUncategorized.checked;
+    const fSent = filterSentBtn.classList.contains('active');
+    const fReceived = filterReceivedBtn.classList.contains('active');
+    const fUncat = filterUncategorizedBtn.classList.contains('active');
     const fCustom = filterCustomTag.value;
     return list.filter(p =>
       matchField(p.location, fLoc) &&
@@ -1045,7 +1086,10 @@
     allSection.style.display = 'none';
     recentSection.style.display = '';
   });
-  [filterLocation, filterPikmin, filterFloral, filterSent, filterReceived, filterUncategorized, filterCustomTag].forEach(sel => sel.addEventListener('change', renderAllGrid));
+  [filterLocation, filterPikmin, filterFloral, filterCustomTag].forEach(sel => sel.addEventListener('change', renderAllGrid));
+  [filterSentBtn, filterReceivedBtn, filterUncategorizedBtn].forEach(btn => {
+    btn.addEventListener('click', () => { btn.classList.toggle('active'); renderAllGrid(); });
+  });
 
   document.addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-del]');
@@ -1060,6 +1104,33 @@
     } catch (err) {
       alert(err.message || err);
       if (String(err.message).includes('登入已過期')) doForceLogout();
+    }
+  });
+
+  // Star badge on each card toggles that postcard's favorite status directly,
+  // without needing to go through the edit modal.
+  document.addEventListener('click', async (e) => {
+    const favBtn = e.target.closest('button[data-fav]');
+    if (!favBtn) return;
+    const id = favBtn.getAttribute('data-fav');
+    const pc = allPostcardsCache.find(p => p.id === id);
+    if (!pc) return;
+    favBtn.disabled = true;
+    const nextFavorite = !pc.favorite;
+    try {
+      await driveUpdatePostcardMeta(id, {
+        name: pc.name, location: pc.location, pikmin: pc.pikmin, floral: pc.floral,
+        sent: pc.sent, received: pc.received, favorite: nextFavorite,
+        customTag: pc.customTag, coords: pc.coords, notes: pc.notes
+      });
+      pc.favorite = nextFavorite;
+      renderRecentFromCache();
+      renderAllGrid();
+    } catch (err) {
+      alert(err.message || err);
+      if (String(err.message).includes('登入已過期')) doForceLogout();
+    } finally {
+      favBtn.disabled = false;
     }
   });
 
@@ -1104,6 +1175,7 @@
 
   document.addEventListener('click', (e) => {
     if (e.target.closest('button[data-del]')) return;
+    if (e.target.closest('button[data-fav]')) return;
     const card = e.target.closest('.pc-card');
     if (!card) return;
     openEditModal(card.getAttribute('data-id'));
@@ -1168,7 +1240,7 @@
   function renderRecentFromCache() {
     const recent = getHomeGridItems();
     if (recent.length === 0) {
-      recentGrid.innerHTML = `<div class="empty-hint">還沒有存過任何明信片,點右下角「存入明信片」開始吧。</div>`;
+      recentGrid.innerHTML = homeEmptyHintHtml();
       return;
     }
     recentGrid.innerHTML = recent.map(skeletonCardHtml).join('');
