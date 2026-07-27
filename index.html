@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>皮可敏明信片</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
   :root {
     color-scheme: light dark;
@@ -373,6 +374,7 @@
           <label for="filterLocation">依地點</label>
           <select id="filterLocation">
             <option value="">全部地點</option>
+            <option value="__uncat__">未歸類</option>
             <option>台灣</option><option>亞洲</option><option>歐洲</option><option>非洲</option>
             <option>大洋洲</option><option>北美洲</option><option>南美洲</option><option>南極洲</option>
           </select>
@@ -381,6 +383,7 @@
           <label for="filterPikmin">依皮克敏</label>
           <select id="filterPikmin">
             <option value="">全部</option>
+            <option value="__uncat__">未歸類</option>
             <option>大頭照</option><option>1皮</option><option>2皮</option>
             <option>3皮</option><option>4皮</option><option>5皮</option>
           </select>
@@ -389,6 +392,7 @@
           <label for="filterFloral">依獲取方式</label>
           <select id="filterFloral">
             <option value="">全部</option>
+            <option value="__uncat__">未歸類</option>
             <option>花點</option><option>菇點</option><option>探險</option><option>隱藏</option>
           </select>
         </div>
@@ -397,6 +401,12 @@
           <div class="check-group">
             <label><input type="checkbox" id="filterSent"> 寄出</label>
             <label><input type="checkbox" id="filterReceived"> 收到</label>
+          </div>
+        </div>
+        <div>
+          <label>其他</label>
+          <div class="check-group">
+            <label><input type="checkbox" id="filterUncategorized"> 未歸類</label>
           </div>
         </div>
       </div>
@@ -427,6 +437,10 @@
           <button type="button" class="remove-photo-btn" id="removePhotoBtn" aria-label="移除照片">✕</button>
         </div>
         <div class="upload-progress" id="uploadProgress"><div class="bar" id="uploadProgressBar"></div></div>
+      </div>
+      <div class="field">
+        <label for="nameInput">明信片名稱 <span id="nameOcrStatus" style="font-weight:400;color:var(--text-muted);"></span></label>
+        <input type="text" id="nameInput" placeholder="選好照片後會自動嘗試辨識文字,可自行修改">
       </div>
       <div class="field">
         <label for="locationSelect">地點</label>
@@ -480,6 +494,10 @@
     <h2 style="font-size:16px;margin-bottom:16px;">編輯明信片</h2>
     <img id="editPhotoPreview" alt="明信片照片" style="width:100%;max-height:280px;object-fit:contain;border-radius:9px;border:1px solid var(--border);background:var(--bg);margin-bottom:14px;display:block;">
     <form id="editForm">
+      <div class="field">
+        <label for="editNameInput">明信片名稱</label>
+        <input type="text" id="editNameInput" placeholder="尚未辨識到名稱,可自行輸入">
+      </div>
       <div class="field">
         <label for="editLocationSelect">地點</label>
         <select id="editLocationSelect">
@@ -570,6 +588,7 @@
   const filterFloral = document.getElementById('filterFloral');
   const filterSent = document.getElementById('filterSent');
   const filterReceived = document.getElementById('filterReceived');
+  const filterUncategorized = document.getElementById('filterUncategorized');
 
   const addModalBackdrop = document.getElementById('addModalBackdrop');
   const addForm = document.getElementById('addForm');
@@ -582,6 +601,8 @@
   const uploadProgressBar = document.getElementById('uploadProgressBar');
   const sentCheck = document.getElementById('sentCheck');
   const receivedCheck = document.getElementById('receivedCheck');
+  const nameInput = document.getElementById('nameInput');
+  const nameOcrStatus = document.getElementById('nameOcrStatus');
   const cancelAddBtn = document.getElementById('cancelAddBtn');
   const saveBtn = document.getElementById('saveBtn');
   const formMsg = document.getElementById('formMsg');
@@ -594,6 +615,7 @@
   const editPointTypeSelect = document.getElementById('editPointTypeSelect');
   const editSentCheck = document.getElementById('editSentCheck');
   const editReceivedCheck = document.getElementById('editReceivedCheck');
+  const editNameInput = document.getElementById('editNameInput');
   const editCoordInput = document.getElementById('editCoordInput');
   const editNotesInput = document.getElementById('editNotesInput');
   const editFormMsg = document.getElementById('editFormMsg');
@@ -711,6 +733,7 @@
       return {
         id: f.id,
         createdTime: f.createdTime,
+        name: props.pcName || '',
         location: props.location || '',
         pikmin: props.pikmin || '',
         floral: props.floral || '',
@@ -736,7 +759,8 @@
     const metadataPart = JSON.stringify({
       name: `postcard_${Date.now()}.jpg`,
       appProperties: {
-        app: APP_TAG, location: meta.location, pikmin: meta.pikmin, floral: meta.floral,
+        app: APP_TAG, pcName: String(meta.name || '').slice(0, 100),
+        location: meta.location, pikmin: meta.pikmin, floral: meta.floral,
         sent: String(!!meta.sent), received: String(!!meta.received)
       },
       description: JSON.stringify({ coords: meta.coords, notes: meta.notes })
@@ -780,7 +804,8 @@
       headers: driveHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         appProperties: {
-          app: APP_TAG, location: meta.location, pikmin: meta.pikmin, floral: meta.floral,
+          app: APP_TAG, pcName: String(meta.name || '').slice(0, 100),
+          location: meta.location, pikmin: meta.pikmin, floral: meta.floral,
           sent: String(!!meta.sent), received: String(!!meta.received)
         },
         description: JSON.stringify({ coords: meta.coords, notes: meta.notes })
@@ -848,15 +873,23 @@
     }
   }
 
+  const UNCAT = '__uncat__';
+  function matchField(value, filterValue) {
+    if (!filterValue) return true;
+    if (filterValue === UNCAT) return !value;
+    return value === filterValue;
+  }
   function applyFilters(list) {
     const fLoc = filterLocation.value, fPik = filterPikmin.value, fFlo = filterFloral.value;
     const fSent = filterSent.checked, fReceived = filterReceived.checked;
+    const fUncat = filterUncategorized.checked;
     return list.filter(p =>
-      (!fLoc || p.location === fLoc) &&
-      (!fPik || p.pikmin === fPik) &&
-      (!fFlo || p.floral === fFlo) &&
+      matchField(p.location, fLoc) &&
+      matchField(p.pikmin, fPik) &&
+      matchField(p.floral, fFlo) &&
       (!fSent || p.sent) &&
-      (!fReceived || p.received)
+      (!fReceived || p.received) &&
+      (!fUncat || (!p.location && !p.pikmin && !p.floral))
     );
   }
 
@@ -887,7 +920,7 @@
     allSection.style.display = 'none';
     recentSection.style.display = '';
   });
-  [filterLocation, filterPikmin, filterFloral, filterSent, filterReceived].forEach(sel => sel.addEventListener('change', renderAllGrid));
+  [filterLocation, filterPikmin, filterFloral, filterSent, filterReceived, filterUncategorized].forEach(sel => sel.addEventListener('change', renderAllGrid));
 
   document.addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-del]');
@@ -913,6 +946,7 @@
     editForm.reset();
     editFormMsg.textContent = '';
     editFormMsg.className = '';
+    editNameInput.value = pc.name || '';
     editLocationSelect.value = pc.location || '';
     editPikminSelect.value = pc.pikmin || '';
     editPointTypeSelect.value = pc.floral || '';
@@ -965,11 +999,7 @@
     const location = editLocationSelect.value;
     const pikmin = editPikminSelect.value;
     const floral = editPointTypeSelect.value;
-    if (!location || !pikmin || !floral) {
-      editFormMsg.textContent = '地點 / 皮克敏 / 獲取方式都請選擇。';
-      editFormMsg.className = 'err';
-      return;
-    }
+    const name = editNameInput.value.trim();
     const sent = editSentCheck.checked;
     const received = editReceivedCheck.checked;
     const coords = editCoordInput.value.trim();
@@ -979,10 +1009,10 @@
     editFormMsg.className = '';
     editFormMsg.innerHTML = `<span class="spinner"></span>儲存中...`;
     try {
-      await driveUpdatePostcardMeta(editingId, { location, pikmin, floral, sent, received, coords, notes });
+      await driveUpdatePostcardMeta(editingId, { name, location, pikmin, floral, sent, received, coords, notes });
       const idx = allPostcardsCache.findIndex(p => p.id === editingId);
       if (idx !== -1) {
-        allPostcardsCache[idx] = Object.assign({}, allPostcardsCache[idx], { location, pikmin, floral, sent, received, coords, notes });
+        allPostcardsCache[idx] = Object.assign({}, allPostcardsCache[idx], { name, location, pikmin, floral, sent, received, coords, notes });
       }
       renderRecentFromCache();
       renderAllGrid();
@@ -1042,6 +1072,31 @@
     photoInput.value = '';
     previewWrap.style.display = 'none';
     dropzone.style.display = '';
+    nameInput.value = '';
+    nameOcrStatus.textContent = '';
+  }
+
+  // OCR-scans the photo for printed text and fills the name field with the
+  // first non-empty recognized line; the field stays editable either way
+  // since recognition accuracy depends heavily on the photo's text clarity.
+  async function scanPostcardName(blob) {
+    if (typeof Tesseract === 'undefined') {
+      nameOcrStatus.textContent = '(文字辨識元件載入失敗,請自行輸入)';
+      return;
+    }
+    nameOcrStatus.textContent = '辨識文字中...';
+    try {
+      const { data } = await Tesseract.recognize(blob, 'chi_tra+eng');
+      const line = (data.text || '').split('\n').map(s => s.trim()).find(s => s.length > 0) || '';
+      if (line) {
+        nameInput.value = line;
+        nameOcrStatus.textContent = '(已自動辨識,可自行修改)';
+      } else {
+        nameOcrStatus.textContent = '(無法辨識出文字,請自行輸入)';
+      }
+    } catch (err) {
+      nameOcrStatus.textContent = '(文字辨識失敗,請自行輸入)';
+    }
   }
 
   function openAddModal() {
@@ -1077,6 +1132,8 @@
       photoPreview.src = URL.createObjectURL(pendingPhotoBlob);
       previewWrap.style.display = 'block';
       dropzone.style.display = 'none';
+      nameInput.value = '';
+      scanPostcardName(pendingPhotoBlob);
     } catch (err) {
       formMsg.textContent = err.message || String(err);
       formMsg.className = 'err';
@@ -1118,11 +1175,7 @@
     const location = document.getElementById('locationSelect').value;
     const pikmin = document.getElementById('pikminSelect').value;
     const floral = document.getElementById('pointTypeSelect').value;
-    if (!location || !pikmin || !floral) {
-      formMsg.textContent = '地點 / 皮克敏 / 獲取方式都請選擇後再儲存。';
-      formMsg.className = 'err';
-      return;
-    }
+    const name = nameInput.value.trim();
     const sent = sentCheck.checked;
     const received = receivedCheck.checked;
     const coords = document.getElementById('coordInput').value.trim();
@@ -1135,7 +1188,7 @@
     uploadProgressBar.style.width = '0%';
 
     try {
-      await driveUploadPostcard(pendingPhotoBlob, { location, pikmin, floral, sent, received, coords, notes }, (pct) => {
+      await driveUploadPostcard(pendingPhotoBlob, { name, location, pikmin, floral, sent, received, coords, notes }, (pct) => {
         uploadProgressBar.style.width = pct + '%';
         formMsg.innerHTML = `<span class="spinner"></span>上傳中... ${pct}%`;
       });
