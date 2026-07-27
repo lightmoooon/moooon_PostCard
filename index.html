@@ -185,7 +185,7 @@
   }
   @media (min-width: 640px) {
     .grid-recent { grid-template-columns: repeat(3, 1fr); }
-    .grid-all { grid-template-columns: repeat(4, 1fr); }
+    .grid-all { grid-template-columns: repeat(3, 1fr); }
   }
   .pc-card {
     border: 1px solid var(--border);
@@ -442,6 +442,12 @@
             <option>花點</option><option>菇點</option><option>探險</option><option>隱藏</option>
           </select>
         </div>
+        <div id="filterCustomTagWrap" style="display:none">
+          <label for="filterCustomTag">依自定義標籤</label>
+          <select id="filterCustomTag">
+            <option value="">全部</option>
+          </select>
+        </div>
         <div>
           <label>依寄出/收到</label>
           <div class="toggle-group">
@@ -454,12 +460,6 @@
           <div class="toggle-group">
             <button type="button" class="toggle-btn" id="filterUncategorizedBtn">未歸類</button>
           </div>
-        </div>
-        <div id="filterCustomTagWrap" style="display:none">
-          <label for="filterCustomTag">依自定義標籤</label>
-          <select id="filterCustomTag">
-            <option value="">全部</option>
-          </select>
         </div>
       </div>
       <div class="grid grid-all" id="allGrid"></div>
