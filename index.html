@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>皮可敏明信片</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f0f4ec;
+    --surface: #ffffff;
+    --border: #d9e2cf;
+    --text: #22301c;
+    --text-muted: #5f6f57;
+    --accent: #5a9c5a;
+    --accent-strong: #3f7a41;
+    --accent-soft: #e6f2e2;
+    --gold: #c99a3b;
+    --danger: #b3441f;
+    --danger-soft: #fbe9e1;
+    --good: #4c8c5a;
+    --shadow: 0 1px 2px rgba(20, 30, 15, 0.06), 0 8px 24px -12px rgba(20, 30, 15, 0.2);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131a10;
+      --surface: #1d2618;
+      --border: #354430;
+      --text: #eaf1e4;
+      --text-muted: #a7b89d;
+      --accent: #7fca7f;
+      --accent-strong: #a3dba3;
+      --accent-soft: #24331f;
+      --gold: #e0b968;
+      --danger: #e58a67;
+      --danger-soft: #33231c;
+      --good: #7fca90;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131a10; --surface: #1d2618; --border: #354430; --text: #eaf1e4;
+    --text-muted: #a7b89d; --accent: #7fca7f; --accent-strong: #a3dba3;
+    --accent-soft: #24331f; --gold: #e0b968; --danger: #e58a67; --danger-soft: #33231c; --good: #7fca90;
+  }
+  :root[data-theme="light"] {
+    --bg: #f0f4ec; --surface: #ffffff; --border: #d9e2cf; --text: #22301c;
+    --text-muted: #5f6f57; --accent: #5a9c5a; --accent-strong: #3f7a41;
+    --accent-soft: #e6f2e2; --gold: #c99a3b; --danger: #b3441f; --danger-soft: #fbe9e1; --good: #4c8c5a;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", "Microsoft JhengHei", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px 16px 64px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+
+  header.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  header.top h1 {
+    font-size: 20px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  header.top h1::before { content: "🌸"; }
+  .userbox { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+  .userbox img { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); }
+
+  .btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    padding: 9px 16px;
+    border-radius: 9px;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.primary:hover { background: var(--accent-strong); }
+  .btn.secondary { background: transparent; }
+  .btn.danger { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+  .card h2 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 14px;
+  }
+
+  /* ---- login ---- */
+  #loginView {
+    min-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    text-align: center;
+  }
+  #loginView .emoji { font-size: 48px; }
+  #loginView p { color: var(--text-muted); max-width: 320px; margin: 0; }
+  #loginError { color: var(--danger); font-size: 13px; min-height: 18px; }
+
+  /* ---- filters ---- */
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .filters > div { flex: 1; min-width: 140px; }
+  .filters label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+  .filters select {
+    width: 100%; padding: 8px 9px; border-radius: 9px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 13.5px; font-family: inherit;
+  }
+
+  /* ---- postcard grids ---- */
+  .grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (min-width: 640px) {
+    .grid-recent { grid-template-columns: repeat(5, 1fr); }
+    .grid-all { grid-template-columns: repeat(4, 1fr); }
+  }
+  .pc-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--accent-soft);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .pc-card .thumb {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    background: var(--border);
+    display: block;
+  }
+  .pc-card .meta {
+    padding: 8px 9px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .pc-card .meta .loc { font-weight: 700; }
+  .pc-card .meta .coord { color: var(--text-muted); font-variant-numeric: tabular-nums; word-break: break-all; }
+  .pc-card .meta .note { color: var(--text-muted); margin-top: 3px; }
+  .pc-card .meta .tags { margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
+  .pc-card .tag {
+    font-size: 10.5px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .pc-card .del-btn {
+    position: absolute; top: 6px; right: 6px;
+    width: 24px; height: 24px; border-radius: 50%;
+    border: none; background: rgba(0,0,0,0.55); color: #fff;
+    font-size: 13px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .empty-hint { color: var(--text-muted); font-size: 13px; padding: 20px 4px; text-align: center; }
+
+  .row-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+
+  /* ---- floating add button ---- */
+  .fab {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 20;
+    border-radius: 999px;
+    padding: 14px 20px;
+    font-weight: 700;
+    box-shadow: 0 6px 18px -4px rgba(0,0,0,0.35);
+  }
+
+  /* ---- modal ---- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 15, 8, 0.5);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 30;
+    padding: 0;
+  }
+  @media (min-width: 640px) {
+    .modal-backdrop { align-items: center; padding: 20px; }
+  }
+  .modal {
+    background: var(--surface);
+    width: 100%;
+    max-width: 480px;
+    max-height: 92vh;
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+    padding: 20px;
+  }
+  @media (min-width: 640px) {
+    .modal { border-radius: 16px; }
+  }
+  .modal h2 { margin-top: 0; }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .field input[type=text],
+  .field input[type=file],
+  .field select,
+  .field textarea {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .field textarea { min-height: 64px; resize: vertical; }
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 22px 12px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--bg);
+    transition: border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .dropzone .dz-icon { font-size: 26px; display: block; margin-bottom: 6px; }
+  .dropzone .dz-text { font-size: 13px; color: var(--text-muted); }
+  .dropzone .dz-text b { color: var(--accent-strong); }
+  #photoInput { display: none; }
+  .preview-wrap { position: relative; margin-top: 8px; display: none; }
+  #photoPreview {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 9px;
+    display: block;
+    border: 1px solid var(--border);
+  }
+  .preview-wrap .remove-photo-btn {
+    position: absolute; top: 6px; right: 6px;
+    width: 24px; height: 24px; border-radius: 50%;
+    border: none; background: rgba(0,0,0,0.55); color: #fff;
+    font-size: 13px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .upload-progress {
+    display: none;
+    margin-top: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .upload-progress .bar {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width .15s ease-out;
+  }
+  .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+  .modal-actions .btn { flex: 1; }
+  #formMsg { font-size: 13px; min-height: 18px; margin-top: 8px; }
+  #formMsg.err { color: var(--danger); }
+  #formMsg.ok { color: var(--good); }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.5);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: -2px;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #configWarning {
+    background: var(--danger-soft);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="configWarning"></div>
+
+  <div id="loginView">
+    <div class="emoji">🌸🍄</div>
+    <h1 style="margin:0;">皮可敏明信片</h1>
+    <p>登入你的 Google 帳號,開始存放屬於你自己的明信片收藏。照片會存進你自己的 Google 雲端硬碟(這個 App 專屬的檔案,其他 App 看不到),換裝置登入同一個帳號也看得到。</p>
+    <button class="btn primary" id="loginBtn">使用 Google 帳號繼續</button>
+    <p style="font-size:12px;">第一次使用?直接用 Google 登入即可,不用另外註冊 —— 你看到的收藏就是這個 Google 帳號專屬的。</p>
+    <div id="loginError"></div>
+  </div>
+
+  <div id="appView" style="display:none">
+    <header class="top">
+      <h1>皮可敏明信片</h1>
+      <div class="userbox">
+        <img id="userAvatar" src="" alt="">
+        <span id="userName"></span>
+        <button class="btn secondary" id="logoutBtn">登出</button>
+      </div>
+    </header>
+
+    <div class="card" id="recentSection">
+      <h2>最近 5 張明信片</h2>
+      <div class="grid grid-recent" id="recentGrid"></div>
+      <div class="row-actions">
+        <button class="btn secondary" id="showAllBtn">顯示全部</button>
+      </div>
+    </div>
+
+    <div class="card" id="allSection" style="display:none">
+      <h2>所有明信片</h2>
+      <div class="filters">
+        <div>
+          <label for="filterLocation">依地點</label>
+          <select id="filterLocation">
+            <option value="">全部地點</option>
+            <option>亞洲</option><option>歐洲</option><option>非洲</option>
+            <option>大洋洲</option><option>北美洲</option><option>南美洲</option><option>南極洲</option>
+          </select>
+        </div>
+        <div>
+          <label for="filterPikmin">依皮克敏</label>
+          <select id="filterPikmin">
+            <option value="">全部</option>
+            <option>大頭照</option><option>1皮</option><option>2皮</option>
+            <option>3皮</option><option>4皮</option><option>5皮</option>
+          </select>
+        </div>
+        <div>
+          <label for="filterFloral">依花/菇點</label>
+          <select id="filterFloral">
+            <option value="">全部</option>
+            <option>花點</option><option>菇點</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-all" id="allGrid"></div>
+      <div class="row-actions">
+        <button class="btn secondary" id="backToRecentBtn">收合</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn primary fab" id="addBtn" style="display:none">＋ 存入明信片</button>
+
+</div>
+
+<div class="modal-backdrop" id="addModalBackdrop" style="display:none">
+  <div class="modal">
+    <h2 style="font-size:16px;margin-bottom:16px;">存入明信片</h2>
+    <form id="addForm">
+      <div class="field">
+        <label for="photoInput">明信片照片</label>
+        <div class="dropzone" id="dropzone" tabindex="0">
+          <span class="dz-icon">📮</span>
+          <span class="dz-text"><b>點擊選擇照片</b>,或直接拖曳照片到這裡</span>
+        </div>
+        <input type="file" id="photoInput" accept="image/*">
+        <div class="preview-wrap" id="previewWrap">
+          <img id="photoPreview" alt="預覽">
+          <button type="button" class="remove-photo-btn" id="removePhotoBtn" aria-label="移除照片">✕</button>
+        </div>
+        <div class="upload-progress" id="uploadProgress"><div class="bar" id="uploadProgressBar"></div></div>
+      </div>
+      <div class="field">
+        <label for="locationSelect">地點</label>
+        <select id="locationSelect">
+          <option value="">請選擇</option>
+          <option>亞洲</option><option>歐洲</option><option>非洲</option>
+          <option>大洋洲</option><option>北美洲</option><option>南美洲</option><option>南極洲</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="pikminSelect">皮克敏</label>
+        <select id="pikminSelect">
+          <option value="">請選擇</option>
+          <option>大頭照</option><option>1皮</option><option>2皮</option>
+          <option>3皮</option><option>4皮</option><option>5皮</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="pointTypeSelect">花/菇點</label>
+        <select id="pointTypeSelect">
+          <option value="">請選擇</option>
+          <option>花點</option><option>菇點</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="coordInput">座標</label>
+        <input type="text" id="coordInput" placeholder="自行輸入,例如: 25.033000,121.565400">
+      </div>
+      <div class="field">
+        <label for="notesInput">備註</label>
+        <textarea id="notesInput" placeholder="選填,自行輸入"></textarea>
+      </div>
+      <div id="formMsg"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn secondary" id="cancelAddBtn">取消</button>
+        <button type="submit" class="btn primary" id="saveBtn">儲存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  // =====================================================================
+  // 請把你自己 Google Cloud 專案的 OAuth Client ID 貼在這裡(在 Google
+  // Cloud Console → API 和服務 → 憑證 → OAuth 用戶端 ID 可以找到,類型要選
+  // 「網頁應用程式」,並把你實際開啟這個網頁的網址加進「已授權的 JavaScript
+  // 來源」)。在填入正確的 Client ID 前,登入/存取功能都無法運作。
+  // =====================================================================
+  const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file openid email profile';
+  const APP_TAG = 'pikminPostcards';
+  const DRIVE_API = 'https://www.googleapis.com/drive/v3';
+  const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
+
+  const isConfigured = !GOOGLE_CLIENT_ID.startsWith('YOUR_');
+
+  const configWarning = document.getElementById('configWarning');
+  if (!isConfigured) {
+    configWarning.style.display = 'block';
+    configWarning.textContent = '尚未設定 Google OAuth Client ID,請依照說明把 GOOGLE_CLIENT_ID 換成你自己的 Google Cloud 專案設定,登入與儲存功能才會生效。';
+  }
+
+  const loginView = document.getElementById('loginView');
+  const appView = document.getElementById('appView');
+  const addBtn = document.getElementById('addBtn');
+  const loginBtn = document.getElementById('loginBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const loginError = document.getElementById('loginError');
+  const userAvatar = document.getElementById('userAvatar');
+  const userName = document.getElementById('userName');
+
+  const recentGrid = document.getElementById('recentGrid');
+  const allGrid = document.getElementById('allGrid');
+  const allSection = document.getElementById('allSection');
+  const recentSection = document.getElementById('recentSection');
+  const showAllBtn = document.getElementById('showAllBtn');
+  const backToRecentBtn = document.getElementById('backToRecentBtn');
+  const filterLocation = document.getElementById('filterLocation');
+  const filterPikmin = document.getElementById('filterPikmin');
+  const filterFloral = document.getElementById('filterFloral');
+
+  const addModalBackdrop = document.getElementById('addModalBackdrop');
+  const addForm = document.getElementById('addForm');
+  const dropzone = document.getElementById('dropzone');
+  const photoInput = document.getElementById('photoInput');
+  const previewWrap = document.getElementById('previewWrap');
+  const photoPreview = document.getElementById('photoPreview');
+  const removePhotoBtn = document.getElementById('removePhotoBtn');
+  const uploadProgress = document.getElementById('uploadProgress');
+  const uploadProgressBar = document.getElementById('uploadProgressBar');
+  const cancelAddBtn = document.getElementById('cancelAddBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const formMsg = document.getElementById('formMsg');
+
+  let accessToken = null;
+  let currentUser = null;
+  let tokenClient = null;
+  let pendingPhotoBlob = null;
+  let allPostcardsCache = []; // last full list fetched from Drive, used for client-side filtering
+
+  function escapeHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  }
+
+  // ---- Google Identity Services setup ----
+  function initGis() {
+    if (!isConfigured || typeof google === 'undefined' || !google.accounts) return;
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: DRIVE_SCOPE,
+      callback: async (tokenResponse) => {
+        if (tokenResponse.error) {
+          loginError.textContent = '登入失敗: ' + tokenResponse.error;
+          return;
+        }
+        accessToken = tokenResponse.access_token;
+        try {
+          await onLoginSuccess();
+        } catch (err) {
+          loginError.textContent = '登入後讀取帳號資料失敗: ' + (err.message || err);
+        }
+      }
+    });
+  }
+  // google's script is loaded with defer, so poll briefly until it's ready
+  (function waitForGis(tries) {
+    if (typeof google !== 'undefined' && google.accounts) { initGis(); return; }
+    if (tries <= 0) return;
+    setTimeout(() => waitForGis(tries - 1), 200);
+  })(25);
+
+  loginBtn.addEventListener('click', () => {
+    loginError.textContent = '';
+    if (!isConfigured) {
+      loginError.textContent = '尚未設定 Google OAuth Client ID,無法登入。';
+      return;
+    }
+    if (!tokenClient) {
+      loginError.textContent = 'Google 登入元件尚未載入完成,請稍後再試一次。';
+      return;
+    }
+    tokenClient.requestAccessToken({ prompt: 'select_account' });
+  });
+
+  logoutBtn.addEventListener('click', () => {
+    if (accessToken && typeof google !== 'undefined' && google.accounts) {
+      google.accounts.oauth2.revoke(accessToken, () => {});
+    }
+    accessToken = null;
+    currentUser = null;
+    allPostcardsCache = [];
+    loginView.style.display = '';
+    appView.style.display = 'none';
+    addBtn.style.display = 'none';
+    allSection.style.display = 'none';
+    recentSection.style.display = '';
+  });
+
+  async function onLoginSuccess() {
+    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    });
+    if (!res.ok) throw new Error('無法取得帳號資料 (' + res.status + ')');
+    const profile = await res.json();
+    currentUser = profile;
+    loginView.style.display = 'none';
+    appView.style.display = '';
+    addBtn.style.display = '';
+    userAvatar.src = profile.picture || '';
+    userName.textContent = profile.name || profile.email || '';
+    await loadPostcards();
+  }
+
+  // ---- Drive API helpers ----
+  function driveHeaders(extra) {
+    return Object.assign({ Authorization: 'Bearer ' + accessToken }, extra || {});
+  }
+
+  async function handleDriveError(res, action) {
+    if (res.status === 401) {
+      accessToken = null;
+      throw new Error('登入已過期,請重新登入後再' + action + '。');
+    }
+    const text = await res.text().catch(() => '');
+    throw new Error(action + '失敗 (' + res.status + ')' + (text ? ': ' + text.slice(0, 200) : ''));
+  }
+
+  async function driveListPostcards() {
+    const q = `appProperties has { key='app' and value='${APP_TAG}' } and trashed=false`;
+    const fields = 'files(id,name,createdTime,appProperties,description)';
+    const url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&orderBy=createdTime desc&fields=${encodeURIComponent(fields)}&pageSize=1000`;
+    const res = await fetch(url, { headers: driveHeaders() });
+    if (!res.ok) return handleDriveError(res, '讀取明信片清單');
+    const data = await res.json();
+    return (data.files || []).map(f => {
+      let extra = {};
+      try { extra = JSON.parse(f.description || '{}'); } catch (e) { /* ignore malformed description */ }
+      const props = f.appProperties || {};
+      return {
+        id: f.id,
+        createdTime: f.createdTime,
+        location: props.location || '',
+        pikmin: props.pikmin || '',
+        floral: props.floral || '',
+        coords: extra.coords || '',
+        notes: extra.notes || ''
+      };
+    });
+  }
+
+  async function driveFetchImageBlobUrl(fileId) {
+    const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, { headers: driveHeaders() });
+    if (!res.ok) return handleDriveError(res, '讀取照片');
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  }
+
+  // Uses XHR (not fetch) so upload progress can be reported via onprogress —
+  // fetch has no cross-browser request-upload-progress event.
+  function driveUploadPostcard(fileBlob, meta, onProgress) {
+    const boundary = 'pikmin_boundary_' + Date.now();
+    const metadataPart = JSON.stringify({
+      name: `postcard_${Date.now()}.jpg`,
+      appProperties: { app: APP_TAG, location: meta.location, pikmin: meta.pikmin, floral: meta.floral },
+      description: JSON.stringify({ coords: meta.coords, notes: meta.notes })
+    });
+
+    const head = new Blob([
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadataPart}\r\n`,
+      `--${boundary}\r\nContent-Type: image/jpeg\r\n\r\n`
+    ], { type: 'text/plain' });
+    const tail = new Blob([`\r\n--${boundary}--`], { type: 'text/plain' });
+    const multipartBody = new Blob([head, fileBlob, tail]);
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id`);
+      xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+      xhr.setRequestHeader('Content-Type', `multipart/related; boundary=${boundary}`);
+      if (onProgress) {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+        };
+      }
+      xhr.onload = () => {
+        if (xhr.status === 401) {
+          accessToken = null;
+          reject(new Error('登入已過期,請重新登入後再上傳。'));
+        } else if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else {
+          reject(new Error('上傳失敗 (' + xhr.status + '): ' + xhr.responseText.slice(0, 200)));
+        }
+      };
+      xhr.onerror = () => reject(new Error('上傳失敗: 網路錯誤'));
+      xhr.send(multipartBody);
+    });
+  }
+
+  async function driveDeletePostcard(fileId) {
+    const res = await fetch(`${DRIVE_API}/files/${fileId}`, { method: 'DELETE', headers: driveHeaders() });
+    if (!res.ok && res.status !== 404) return handleDriveError(res, '刪除');
+  }
+
+  // ---- rendering ----
+  function skeletonCardHtml(pc) {
+    const tags = [];
+    if (pc.pikmin) tags.push(`<span class="tag">${escapeHtml(pc.pikmin)}</span>`);
+    if (pc.floral) tags.push(`<span class="tag">${escapeHtml(pc.floral)}</span>`);
+    return `
+      <div class="pc-card" data-id="${escapeHtml(pc.id)}">
+        <button class="del-btn" type="button" data-del="${escapeHtml(pc.id)}" aria-label="刪除">✕</button>
+        <img class="thumb" data-photo-for="${escapeHtml(pc.id)}" alt="明信片" src="">
+        <div class="meta">
+          <div class="loc">${escapeHtml(pc.location || '未設定地點')}</div>
+          <div class="coord">${escapeHtml(pc.coords || '未填座標')}</div>
+          <div class="tags">${tags.join('')}</div>
+          ${pc.notes ? `<div class="note">${escapeHtml(pc.notes)}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  // fetch+attach each thumbnail image asynchronously after the grid skeleton
+  // is on screen, so the list itself doesn't wait on every image download.
+  function hydrateThumbnails(container, list) {
+    list.forEach(pc => {
+      driveFetchImageBlobUrl(pc.id).then(url => {
+        const img = container.querySelector(`img[data-photo-for="${CSS.escape(pc.id)}"]`);
+        if (img) img.src = url;
+      }).catch(() => {
+        const img = container.querySelector(`img[data-photo-for="${CSS.escape(pc.id)}"]`);
+        if (img) img.alt = '照片載入失敗';
+      });
+    });
+  }
+
+  async function loadPostcards() {
+    recentGrid.innerHTML = `<div class="empty-hint">載入中...</div>`;
+    try {
+      allPostcardsCache = await driveListPostcards();
+    } catch (err) {
+      recentGrid.innerHTML = `<div class="empty-hint">${escapeHtml(err.message || err)}</div>`;
+      if (String(err.message).includes('登入已過期')) doForceLogout();
+      return;
+    }
+    const recent = allPostcardsCache.slice(0, 5);
+    if (recent.length === 0) {
+      recentGrid.innerHTML = `<div class="empty-hint">還沒有存過任何明信片,點右下角「存入明信片」開始吧。</div>`;
+    } else {
+      recentGrid.innerHTML = recent.map(skeletonCardHtml).join('');
+      hydrateThumbnails(recentGrid, recent);
+    }
+  }
+
+  function applyFilters(list) {
+    const fLoc = filterLocation.value, fPik = filterPikmin.value, fFlo = filterFloral.value;
+    return list.filter(p =>
+      (!fLoc || p.location === fLoc) &&
+      (!fPik || p.pikmin === fPik) &&
+      (!fFlo || p.floral === fFlo)
+    );
+  }
+
+  function renderAllGrid() {
+    const list = applyFilters(allPostcardsCache);
+    if (list.length === 0) {
+      allGrid.innerHTML = `<div class="empty-hint">沒有符合篩選條件的明信片。</div>`;
+      return;
+    }
+    allGrid.innerHTML = list.map(skeletonCardHtml).join('');
+    hydrateThumbnails(allGrid, list);
+  }
+
+  function doForceLogout() {
+    accessToken = null;
+    currentUser = null;
+    loginView.style.display = '';
+    appView.style.display = 'none';
+    addBtn.style.display = 'none';
+  }
+
+  showAllBtn.addEventListener('click', () => {
+    recentSection.style.display = 'none';
+    allSection.style.display = '';
+    renderAllGrid();
+  });
+  backToRecentBtn.addEventListener('click', () => {
+    allSection.style.display = 'none';
+    recentSection.style.display = '';
+  });
+  [filterLocation, filterPikmin, filterFloral].forEach(sel => sel.addEventListener('change', renderAllGrid));
+
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-del]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-del');
+    btn.disabled = true;
+    try {
+      await driveDeletePostcard(id);
+      allPostcardsCache = allPostcardsCache.filter(p => p.id !== id);
+      renderRecentFromCache();
+      renderAllGrid();
+    } catch (err) {
+      alert(err.message || err);
+      if (String(err.message).includes('登入已過期')) doForceLogout();
+    }
+  });
+
+  function renderRecentFromCache() {
+    const recent = allPostcardsCache.slice(0, 5);
+    if (recent.length === 0) {
+      recentGrid.innerHTML = `<div class="empty-hint">還沒有存過任何明信片,點右下角「存入明信片」開始吧。</div>`;
+      return;
+    }
+    recentGrid.innerHTML = recent.map(skeletonCardHtml).join('');
+    hydrateThumbnails(recentGrid, recent);
+  }
+
+  // ---- add postcard modal ----
+  function resizeImage(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > height && width > maxDim) {
+            height = Math.round(height * (maxDim / width));
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round(width * (maxDim / height));
+            height = maxDim;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('圖片處理失敗')), 'image/jpeg', quality);
+        };
+        img.onerror = () => reject(new Error('圖片無法讀取'));
+        img.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error('檔案讀取失敗'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function resetPhotoField() {
+    pendingPhotoBlob = null;
+    photoInput.value = '';
+    previewWrap.style.display = 'none';
+    dropzone.style.display = '';
+  }
+
+  function openAddModal() {
+    addForm.reset();
+    resetPhotoField();
+    uploadProgress.style.display = 'none';
+    uploadProgressBar.style.width = '0%';
+    formMsg.textContent = '';
+    formMsg.className = '';
+    addModalBackdrop.style.display = 'flex';
+  }
+  function closeAddModal() {
+    addModalBackdrop.style.display = 'none';
+  }
+
+  addBtn.addEventListener('click', openAddModal);
+  cancelAddBtn.addEventListener('click', closeAddModal);
+  addModalBackdrop.addEventListener('click', (e) => {
+    if (e.target === addModalBackdrop) closeAddModal();
+  });
+
+  async function handlePhotoFile(file) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      formMsg.textContent = '請選擇圖片檔案。';
+      formMsg.className = 'err';
+      return;
+    }
+    formMsg.textContent = '';
+    formMsg.className = '';
+    try {
+      pendingPhotoBlob = await resizeImage(file, 1000, 0.85);
+      photoPreview.src = URL.createObjectURL(pendingPhotoBlob);
+      previewWrap.style.display = 'block';
+      dropzone.style.display = 'none';
+    } catch (err) {
+      formMsg.textContent = err.message || String(err);
+      formMsg.className = 'err';
+    }
+  }
+
+  photoInput.addEventListener('change', () => {
+    handlePhotoFile(photoInput.files && photoInput.files[0]);
+  });
+
+  dropzone.addEventListener('click', () => photoInput.click());
+  dropzone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); photoInput.click(); }
+  });
+  ['dragover', 'dragenter'].forEach(evt => dropzone.addEventListener(evt, (e) => {
+    e.preventDefault();
+    dropzone.classList.add('drag-over');
+  }));
+  ['dragleave', 'dragend'].forEach(evt => dropzone.addEventListener(evt, () => {
+    dropzone.classList.remove('drag-over');
+  }));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('drag-over');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    handlePhotoFile(file);
+  });
+
+  removePhotoBtn.addEventListener('click', resetPhotoField);
+
+  addForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentUser || !accessToken) return;
+    if (!pendingPhotoBlob) {
+      formMsg.textContent = '請先選擇一張照片。';
+      formMsg.className = 'err';
+      return;
+    }
+    const location = document.getElementById('locationSelect').value;
+    const pikmin = document.getElementById('pikminSelect').value;
+    const floral = document.getElementById('pointTypeSelect').value;
+    if (!location || !pikmin || !floral) {
+      formMsg.textContent = '地點 / 皮克敏 / 花菇點都請選擇後再儲存。';
+      formMsg.className = 'err';
+      return;
+    }
+    const coords = document.getElementById('coordInput').value.trim();
+    const notes = document.getElementById('notesInput').value.trim();
+
+    saveBtn.disabled = true;
+    formMsg.className = '';
+    formMsg.innerHTML = `<span class="spinner"></span>上傳中...`;
+    uploadProgress.style.display = 'block';
+    uploadProgressBar.style.width = '0%';
+
+    try {
+      await driveUploadPostcard(pendingPhotoBlob, { location, pikmin, floral, coords, notes }, (pct) => {
+        uploadProgressBar.style.width = pct + '%';
+        formMsg.innerHTML = `<span class="spinner"></span>上傳中... ${pct}%`;
+      });
+      formMsg.textContent = '已儲存!';
+      formMsg.className = 'ok';
+      await loadPostcards();
+      if (allSection.style.display !== 'none') renderAllGrid();
+      setTimeout(closeAddModal, 600);
+    } catch (err) {
+      formMsg.textContent = '儲存失敗: ' + (err.message || err);
+      formMsg.className = 'err';
+      if (String(err.message).includes('登入已過期')) doForceLogout();
+    } finally {
+      saveBtn.disabled = false;
+      uploadProgress.style.display = 'none';
+    }
+  });
+})();
+</script>
+</body>
+</html>
