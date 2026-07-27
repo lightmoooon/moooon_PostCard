@@ -135,6 +135,12 @@
     width: 100%; padding: 8px 9px; border-radius: 9px; border: 1px solid var(--border);
     background: var(--bg); color: var(--text); font-size: 13.5px; font-family: inherit;
   }
+  .check-group { display: flex; align-items: center; gap: 14px; min-height: 34px; }
+  .check-group label {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 13.5px; color: var(--text); margin: 0; font-weight: 400; cursor: pointer;
+  }
+  .check-group input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
 
   /* ---- postcard grids ---- */
   .grid {
@@ -366,7 +372,7 @@
           <label for="filterLocation">依地點</label>
           <select id="filterLocation">
             <option value="">全部地點</option>
-            <option>亞洲</option><option>歐洲</option><option>非洲</option>
+            <option>台灣</option><option>亞洲</option><option>歐洲</option><option>非洲</option>
             <option>大洋洲</option><option>北美洲</option><option>南美洲</option><option>南極洲</option>
           </select>
         </div>
@@ -379,11 +385,18 @@
           </select>
         </div>
         <div>
-          <label for="filterFloral">依花/菇點</label>
+          <label for="filterFloral">依獲取方式</label>
           <select id="filterFloral">
             <option value="">全部</option>
-            <option>花點</option><option>菇點</option>
+            <option>花點</option><option>菇點</option><option>探險</option><option>隱藏</option>
           </select>
+        </div>
+        <div>
+          <label>依寄出/收到</label>
+          <div class="check-group">
+            <label><input type="checkbox" id="filterSent"> 寄出</label>
+            <label><input type="checkbox" id="filterReceived"> 收到</label>
+          </div>
         </div>
       </div>
       <div class="grid grid-all" id="allGrid"></div>
@@ -418,7 +431,7 @@
         <label for="locationSelect">地點</label>
         <select id="locationSelect">
           <option value="">請選擇</option>
-          <option>亞洲</option><option>歐洲</option><option>非洲</option>
+          <option>台灣</option><option>亞洲</option><option>歐洲</option><option>非洲</option>
           <option>大洋洲</option><option>北美洲</option><option>南美洲</option><option>南極洲</option>
         </select>
       </div>
@@ -431,11 +444,18 @@
         </select>
       </div>
       <div class="field">
-        <label for="pointTypeSelect">花/菇點</label>
+        <label for="pointTypeSelect">獲取方式</label>
         <select id="pointTypeSelect">
           <option value="">請選擇</option>
-          <option>花點</option><option>菇點</option>
+          <option>花點</option><option>菇點</option><option>探險</option><option>隱藏</option>
         </select>
+      </div>
+      <div class="field">
+        <label>寄出 / 收到</label>
+        <div class="check-group">
+          <label><input type="checkbox" id="sentCheck"> 已寄出</label>
+          <label><input type="checkbox" id="receivedCheck"> 已收到</label>
+        </div>
       </div>
       <div class="field">
         <label for="coordInput">座標</label>
@@ -494,6 +514,8 @@
   const filterLocation = document.getElementById('filterLocation');
   const filterPikmin = document.getElementById('filterPikmin');
   const filterFloral = document.getElementById('filterFloral');
+  const filterSent = document.getElementById('filterSent');
+  const filterReceived = document.getElementById('filterReceived');
 
   const addModalBackdrop = document.getElementById('addModalBackdrop');
   const addForm = document.getElementById('addForm');
@@ -504,6 +526,8 @@
   const removePhotoBtn = document.getElementById('removePhotoBtn');
   const uploadProgress = document.getElementById('uploadProgress');
   const uploadProgressBar = document.getElementById('uploadProgressBar');
+  const sentCheck = document.getElementById('sentCheck');
+  const receivedCheck = document.getElementById('receivedCheck');
   const cancelAddBtn = document.getElementById('cancelAddBtn');
   const saveBtn = document.getElementById('saveBtn');
   const formMsg = document.getElementById('formMsg');
@@ -620,6 +644,8 @@
         location: props.location || '',
         pikmin: props.pikmin || '',
         floral: props.floral || '',
+        sent: props.sent === 'true',
+        received: props.received === 'true',
         coords: extra.coords || '',
         notes: extra.notes || ''
       };
@@ -639,7 +665,10 @@
     const boundary = 'pikmin_boundary_' + Date.now();
     const metadataPart = JSON.stringify({
       name: `postcard_${Date.now()}.jpg`,
-      appProperties: { app: APP_TAG, location: meta.location, pikmin: meta.pikmin, floral: meta.floral },
+      appProperties: {
+        app: APP_TAG, location: meta.location, pikmin: meta.pikmin, floral: meta.floral,
+        sent: String(!!meta.sent), received: String(!!meta.received)
+      },
       description: JSON.stringify({ coords: meta.coords, notes: meta.notes })
     });
 
@@ -685,6 +714,8 @@
     const tags = [];
     if (pc.pikmin) tags.push(`<span class="tag">${escapeHtml(pc.pikmin)}</span>`);
     if (pc.floral) tags.push(`<span class="tag">${escapeHtml(pc.floral)}</span>`);
+    if (pc.sent) tags.push(`<span class="tag">已寄出</span>`);
+    if (pc.received) tags.push(`<span class="tag">已收到</span>`);
     return `
       <div class="pc-card" data-id="${escapeHtml(pc.id)}">
         <button class="del-btn" type="button" data-del="${escapeHtml(pc.id)}" aria-label="刪除">✕</button>
@@ -733,10 +764,13 @@
 
   function applyFilters(list) {
     const fLoc = filterLocation.value, fPik = filterPikmin.value, fFlo = filterFloral.value;
+    const fSent = filterSent.checked, fReceived = filterReceived.checked;
     return list.filter(p =>
       (!fLoc || p.location === fLoc) &&
       (!fPik || p.pikmin === fPik) &&
-      (!fFlo || p.floral === fFlo)
+      (!fFlo || p.floral === fFlo) &&
+      (!fSent || p.sent) &&
+      (!fReceived || p.received)
     );
   }
 
@@ -767,7 +801,7 @@
     allSection.style.display = 'none';
     recentSection.style.display = '';
   });
-  [filterLocation, filterPikmin, filterFloral].forEach(sel => sel.addEventListener('change', renderAllGrid));
+  [filterLocation, filterPikmin, filterFloral, filterSent, filterReceived].forEach(sel => sel.addEventListener('change', renderAllGrid));
 
   document.addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-del]');
@@ -906,10 +940,12 @@
     const pikmin = document.getElementById('pikminSelect').value;
     const floral = document.getElementById('pointTypeSelect').value;
     if (!location || !pikmin || !floral) {
-      formMsg.textContent = '地點 / 皮克敏 / 花菇點都請選擇後再儲存。';
+      formMsg.textContent = '地點 / 皮克敏 / 獲取方式都請選擇後再儲存。';
       formMsg.className = 'err';
       return;
     }
+    const sent = sentCheck.checked;
+    const received = receivedCheck.checked;
     const coords = document.getElementById('coordInput').value.trim();
     const notes = document.getElementById('notesInput').value.trim();
 
@@ -920,7 +956,7 @@
     uploadProgressBar.style.width = '0%';
 
     try {
-      await driveUploadPostcard(pendingPhotoBlob, { location, pikmin, floral, coords, notes }, (pct) => {
+      await driveUploadPostcard(pendingPhotoBlob, { location, pikmin, floral, sent, received, coords, notes }, (pct) => {
         uploadProgressBar.style.width = pct + '%';
         formMsg.innerHTML = `<span class="spinner"></span>上傳中... ${pct}%`;
       });
