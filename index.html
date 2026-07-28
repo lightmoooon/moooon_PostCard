@@ -448,14 +448,12 @@
           </select>
         </div>
         <div>
-          <label>依寄出/收到</label>
           <div class="toggle-group">
             <button type="button" class="toggle-btn" id="filterSentBtn">寄出</button>
             <button type="button" class="toggle-btn" id="filterReceivedBtn">收到</button>
           </div>
         </div>
         <div>
-          <label>其他</label>
           <div class="toggle-group">
             <button type="button" class="toggle-btn" id="filterUncategorizedBtn">未歸類</button>
           </div>
@@ -994,7 +992,7 @@
     // Brand-new account with zero postcards at all — give a direct button
     // rather than just pointing at the floating action button elsewhere.
     if (allPostcardsCache.length === 0) {
-      return `<div class="empty-hint">還沒有存過任何明信片。<br><button type="button" class="btn primary" id="emptyAddBtn" style="margin-top:12px;">＋ 存入明信片</button></div>`;
+      return `<div class="empty-hint"><button type="button" class="btn primary" id="emptyAddBtn">＋ 存入明信片</button></div>`;
     }
     return homeShowFavorites
       ? `<div class="empty-hint">還沒有標記任何「我的最愛」,點卡片左上角的星星加入最愛,或點上方星星切換看最近上傳。</div>`
