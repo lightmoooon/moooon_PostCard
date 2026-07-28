@@ -826,9 +826,19 @@
   async function handleDriveError(res, action) {
     if (res.status === 401) {
       accessToken = null;
+      clearCachedToken();
       throw new Error('登入已過期,請重新登入後再' + action + '。');
     }
     const text = await res.text().catch(() => '');
+    if (res.status === 403 && /insufficient/i.test(text)) {
+      // A cached token issued before the Drive scope was granted keeps
+      // failing the same way forever unless we drop it here — same recovery
+      // path as an expired token, just triggered by a permissions mismatch
+      // instead of time.
+      accessToken = null;
+      clearCachedToken();
+      throw new Error('登入已過期,請重新登入後再' + action + '(這次的登入權限不足,可能是舊的登入紀錄)。');
+    }
     throw new Error(action + '失敗 (' + res.status + ')' + (text ? ': ' + text.slice(0, 200) : ''));
   }
 
