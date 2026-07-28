@@ -473,8 +473,6 @@
   </div>
 
   <div class="fab-group">
-    <input type="file" id="bulkPhotoInput" accept="image/*" multiple style="display:none">
-    <button class="btn secondary fab" id="bulkUploadBtn" style="display:none">批次上傳</button>
     <button class="btn primary fab" id="addBtn" style="display:none">＋ 存入明信片</button>
   </div>
 
@@ -488,16 +486,20 @@
         <label for="photoInput">明信片照片</label>
         <div class="dropzone" id="dropzone" tabindex="0">
           <span class="dz-icon">📮</span>
-          <span class="dz-text"><b>點擊選擇照片</b>,或直接拖曳照片到這裡</span>
+          <span class="dz-text"><b>點擊選擇照片</b>,或直接拖曳照片到這裡(可選單張或一次選多張)</span>
         </div>
-        <input type="file" id="photoInput" accept="image/*">
+        <input type="file" id="photoInput" accept="image/*" multiple>
         <div class="preview-wrap" id="previewWrap">
           <img id="photoPreview" alt="預覽">
           <button type="button" class="remove-photo-btn" id="removePhotoBtn" aria-label="移除照片">✕</button>
         </div>
+        <div class="empty-hint" id="bulkSelectedInfo" style="display:none; padding:10px 4px;">
+          已選擇 <span id="bulkSelectedCount">0</span> 張照片,這批全部會套用同一組分類、不辨識名稱。
+          <button type="button" class="remove-photo-btn" id="removeBulkBtn" aria-label="取消選取" style="position:static; display:inline-flex; margin-left:8px; vertical-align:middle;">✕</button>
+        </div>
         <div class="upload-progress" id="uploadProgress"><div class="bar" id="uploadProgressBar"></div></div>
       </div>
-      <div class="field">
+      <div class="field" id="nameFieldWrap">
         <label for="nameInput">明信片名稱 <span id="nameOcrStatus" style="font-weight:400;color:var(--text-muted);"></span></label>
         <input type="text" id="nameInput" placeholder="選好照片後會自動嘗試辨識文字,可自行修改">
       </div>
@@ -621,66 +623,6 @@
   </div>
 </div>
 
-<div class="modal-backdrop" id="bulkModalBackdrop" style="display:none">
-  <div class="modal">
-    <h2 style="font-size:16px;margin-bottom:6px;">批次上傳明信片</h2>
-    <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px;">已選擇 <span id="bulkFileCount">0</span> 張照片,以下分類會套用到這一批全部的明信片(不會辨識名稱)。</p>
-    <form id="bulkForm">
-      <div class="field">
-        <label for="bulkLocationSelect">地點</label>
-        <select id="bulkLocationSelect">
-          <option value="">請選擇</option>
-          <option>台灣</option><option>亞洲</option><option>歐洲</option><option>非洲</option>
-          <option>大洋洲</option><option>北美洲</option><option>南美洲</option><option>南極洲</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="bulkPikminSelect">皮克敏</label>
-        <select id="bulkPikminSelect">
-          <option value="">請選擇</option>
-          <option>大頭照</option><option>1皮</option><option>2皮</option>
-          <option>3皮</option><option>4皮</option><option>5皮</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="bulkPointTypeSelect">獲取方式</label>
-        <select id="bulkPointTypeSelect">
-          <option value="">請選擇</option>
-          <option>花點</option><option>菇點</option><option>探險</option><option>隱藏</option>
-        </select>
-      </div>
-      <div class="field">
-        <button type="button" class="btn secondary" id="bulkCustomTagBtn">＋ 自定義標籤</button>
-        <div id="bulkCustomTagFieldWrap" style="display:none; margin-top:10px;">
-          <label for="bulkCustomTagInput">自定義標籤</label>
-          <input type="text" id="bulkCustomTagInput" placeholder="自行輸入分類用的標籤">
-        </div>
-      </div>
-      <div class="field">
-        <label>寄出 / 收到 / 我的最愛</label>
-        <div class="toggle-group">
-          <button type="button" class="toggle-btn" id="bulkSentBtn">已寄出</button>
-          <button type="button" class="toggle-btn" id="bulkReceivedBtn">已收到</button>
-          <button type="button" class="toggle-btn" id="bulkFavoriteBtn">⭐ 我的最愛</button>
-        </div>
-      </div>
-      <div class="field">
-        <label for="bulkCoordInput">座標</label>
-        <input type="text" id="bulkCoordInput" placeholder="自行輸入,例如: 25.033000,121.565400">
-      </div>
-      <div class="field">
-        <label for="bulkNotesInput">備註</label>
-        <textarea id="bulkNotesInput" placeholder="選填,自行輸入"></textarea>
-      </div>
-      <div id="bulkFormMsg"></div>
-      <div class="modal-actions">
-        <button type="button" class="btn secondary" id="bulkCancelBtn">取消</button>
-        <button type="submit" class="btn primary" id="bulkSubmitBtn">開始上傳</button>
-      </div>
-    </form>
-  </div>
-</div>
-
 <script>
 (function () {
   // =====================================================================
@@ -706,8 +648,6 @@
   const loginView = document.getElementById('loginView');
   const appView = document.getElementById('appView');
   const addBtn = document.getElementById('addBtn');
-  const bulkUploadBtn = document.getElementById('bulkUploadBtn');
-  const bulkPhotoInput = document.getElementById('bulkPhotoInput');
   const loginBtn = document.getElementById('loginBtn');
   const logoutBtn = document.getElementById('logoutBtn');
   const loginError = document.getElementById('loginError');
@@ -738,6 +678,9 @@
   const previewWrap = document.getElementById('previewWrap');
   const photoPreview = document.getElementById('photoPreview');
   const removePhotoBtn = document.getElementById('removePhotoBtn');
+  const bulkSelectedInfo = document.getElementById('bulkSelectedInfo');
+  const bulkSelectedCount = document.getElementById('bulkSelectedCount');
+  const removeBulkBtn = document.getElementById('removeBulkBtn');
   const uploadProgress = document.getElementById('uploadProgress');
   const uploadProgressBar = document.getElementById('uploadProgressBar');
   const sentBtn = document.getElementById('sentBtn');
@@ -746,6 +689,7 @@
   const customTagBtn = document.getElementById('customTagBtn');
   const customTagFieldWrap = document.getElementById('customTagFieldWrap');
   const customTagInput = document.getElementById('customTagInput');
+  const nameFieldWrap = document.getElementById('nameFieldWrap');
   const nameInput = document.getElementById('nameInput');
   const nameOcrStatus = document.getElementById('nameOcrStatus');
   const cancelAddBtn = document.getElementById('cancelAddBtn');
@@ -773,28 +717,11 @@
   const editSaveBtn = document.getElementById('editSaveBtn');
   let editingId = null;
 
-  const bulkModalBackdrop = document.getElementById('bulkModalBackdrop');
-  const bulkFileCount = document.getElementById('bulkFileCount');
-  const bulkForm = document.getElementById('bulkForm');
-  const bulkLocationSelect = document.getElementById('bulkLocationSelect');
-  const bulkPikminSelect = document.getElementById('bulkPikminSelect');
-  const bulkPointTypeSelect = document.getElementById('bulkPointTypeSelect');
-  const bulkCustomTagBtn = document.getElementById('bulkCustomTagBtn');
-  const bulkCustomTagFieldWrap = document.getElementById('bulkCustomTagFieldWrap');
-  const bulkCustomTagInput = document.getElementById('bulkCustomTagInput');
-  const bulkSentBtn = document.getElementById('bulkSentBtn');
-  const bulkReceivedBtn = document.getElementById('bulkReceivedBtn');
-  const bulkFavoriteBtn = document.getElementById('bulkFavoriteBtn');
-  const bulkCoordInput = document.getElementById('bulkCoordInput');
-  const bulkNotesInput = document.getElementById('bulkNotesInput');
-  const bulkFormMsg = document.getElementById('bulkFormMsg');
-  const bulkCancelBtn = document.getElementById('bulkCancelBtn');
-  const bulkSubmitBtn = document.getElementById('bulkSubmitBtn');
-
   let accessToken = null;
   let currentUser = null;
   let tokenClient = null;
   let pendingPhotoBlob = null;
+  let pendingBulkFiles = [];
   let allPostcardsCache = []; // last full list fetched from Drive, used for client-side filtering
 
   function escapeHtml(s) {
@@ -887,7 +814,6 @@
     loginView.style.display = '';
     appView.style.display = 'none';
     addBtn.style.display = 'none';
-    bulkUploadBtn.style.display = 'none';
     allSection.style.display = 'none';
     recentSection.style.display = '';
   });
@@ -902,7 +828,6 @@
     loginView.style.display = 'none';
     appView.style.display = '';
     addBtn.style.display = '';
-    bulkUploadBtn.style.display = '';
     userAvatar.src = profile.picture || '';
     userName.textContent = profile.name || profile.email || '';
     await loadPostcards();
@@ -1179,7 +1104,6 @@
     loginView.style.display = '';
     appView.style.display = 'none';
     addBtn.style.display = 'none';
-    bulkUploadBtn.style.display = 'none';
   }
 
   showAllBtn.addEventListener('click', () => {
@@ -1383,9 +1307,12 @@
 
   function resetPhotoField() {
     pendingPhotoBlob = null;
+    pendingBulkFiles = [];
     photoInput.value = '';
     previewWrap.style.display = 'none';
+    bulkSelectedInfo.style.display = 'none';
     dropzone.style.display = '';
+    nameFieldWrap.style.display = '';
     nameInput.value = '';
     nameOcrStatus.textContent = '';
   }
@@ -1590,105 +1517,34 @@
     if (e.target === addModalBackdrop) closeAddModal();
   });
 
-  // ---- bulk upload: many photos at once, sharing one classification form
-  // (no per-photo OCR name scan — every photo in the batch gets the same
-  // location/pikmin/獲取方式/寄出/收到/我的最愛/自定義標籤/座標/備註) ----
-  let bulkFiles = [];
-
-  bulkUploadBtn.addEventListener('click', () => bulkPhotoInput.click());
-
-  bulkPhotoInput.addEventListener('change', () => {
-    bulkFiles = [...(bulkPhotoInput.files || [])].filter(f => f.type.startsWith('image/'));
-    bulkPhotoInput.value = '';
-    if (bulkFiles.length === 0) return;
-    openBulkModal();
-  });
-
-  function openBulkModal() {
-    bulkForm.reset();
-    [bulkSentBtn, bulkReceivedBtn, bulkFavoriteBtn].forEach(btn => btn.classList.remove('active'));
-    bulkCustomTagInput.value = '';
-    bulkCustomTagFieldWrap.style.display = 'none';
-    bulkCustomTagBtn.style.display = '';
-    bulkFileCount.textContent = bulkFiles.length;
-    bulkFormMsg.textContent = '';
-    bulkFormMsg.className = '';
-    bulkModalBackdrop.style.display = 'flex';
-  }
-  function closeBulkModal() {
-    bulkModalBackdrop.style.display = 'none';
-  }
-  bulkCancelBtn.addEventListener('click', closeBulkModal);
-  bulkModalBackdrop.addEventListener('click', (e) => {
-    if (e.target === bulkModalBackdrop) closeBulkModal();
-  });
-  bulkCustomTagBtn.addEventListener('click', () => {
-    bulkCustomTagBtn.style.display = 'none';
-    bulkCustomTagFieldWrap.style.display = 'block';
-    bulkCustomTagInput.focus();
-  });
-  [bulkSentBtn, bulkReceivedBtn, bulkFavoriteBtn].forEach(btn => {
-    btn.addEventListener('click', () => btn.classList.toggle('active'));
-  });
-
-  bulkForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (bulkFiles.length === 0) return;
-    const sharedMeta = {
-      name: '',
-      location: bulkLocationSelect.value,
-      pikmin: bulkPikminSelect.value,
-      floral: bulkPointTypeSelect.value,
-      sent: bulkSentBtn.classList.contains('active'),
-      received: bulkReceivedBtn.classList.contains('active'),
-      favorite: bulkFavoriteBtn.classList.contains('active'),
-      customTag: bulkCustomTagInput.value.trim(),
-      coords: bulkCoordInput.value.trim(),
-      notes: bulkNotesInput.value.trim()
-    };
-
-    bulkSubmitBtn.disabled = true;
-    bulkCancelBtn.disabled = true;
-    let okCount = 0, failCount = 0;
-    for (let i = 0; i < bulkFiles.length; i++) {
-      bulkFormMsg.innerHTML = `<span class="spinner"></span>上傳中... (${i + 1}/${bulkFiles.length})`;
-      bulkFormMsg.className = '';
-      try {
-        const resized = await resizeImage(bulkFiles[i], 1000, 0.85);
-        await driveUploadPostcard(resized, sharedMeta, () => {});
-        okCount++;
-      } catch (err) {
-        failCount++;
-        if (String(err.message || err).includes('登入已過期')) {
-          doForceLogout();
-          break;
-        }
-      }
-    }
-
-    bulkFiles = [];
-    bulkSubmitBtn.disabled = false;
-    bulkCancelBtn.disabled = false;
-    bulkFormMsg.textContent = failCount > 0
-      ? `完成:成功 ${okCount} 張,失敗 ${failCount} 張`
-      : `完成:已上傳 ${okCount} 張`;
-    bulkFormMsg.className = failCount > 0 ? 'err' : 'ok';
-    await loadPostcards();
-    if (allSection.style.display !== 'none') renderAllGrid();
-    setTimeout(closeBulkModal, 1200);
-  });
-
-  async function handlePhotoFile(file) {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      formMsg.textContent = '請選擇圖片檔案。';
-      formMsg.className = 'err';
-      return;
-    }
+  // Selecting exactly one photo keeps the normal single-postcard flow
+  // (preview + OCR name scan). Selecting more than one switches to bulk
+  // mode: no preview, no name field, no OCR — every photo in the batch just
+  // gets whatever classification the user fills in below, applied to all.
+  async function handlePhotoFiles(fileList) {
+    const files = [...(fileList || [])].filter(f => f && f.type.startsWith('image/'));
+    if (files.length === 0) return;
     formMsg.textContent = '';
     formMsg.className = '';
+
+    if (files.length > 1) {
+      pendingPhotoBlob = null;
+      pendingBulkFiles = files;
+      previewWrap.style.display = 'none';
+      dropzone.style.display = 'none';
+      nameFieldWrap.style.display = 'none';
+      nameInput.value = '';
+      nameOcrStatus.textContent = '';
+      bulkSelectedCount.textContent = files.length;
+      bulkSelectedInfo.style.display = 'block';
+      return;
+    }
+
+    pendingBulkFiles = [];
+    nameFieldWrap.style.display = '';
+    bulkSelectedInfo.style.display = 'none';
     try {
-      pendingPhotoBlob = await resizeImage(file, 1000, 0.85);
+      pendingPhotoBlob = await resizeImage(files[0], 1000, 0.85);
       photoPreview.src = URL.createObjectURL(pendingPhotoBlob);
       previewWrap.style.display = 'block';
       dropzone.style.display = 'none';
@@ -1696,7 +1552,7 @@
       // OCR gets the original, uncompressed file — the resized/JPEG-compressed
       // upload copy introduces just enough edge artifacts around text to
       // break CJK character shapes, even though it still looks fine to the eye.
-      scanPostcardName(file);
+      scanPostcardName(files[0]);
     } catch (err) {
       formMsg.textContent = err.message || String(err);
       formMsg.className = 'err';
@@ -1704,7 +1560,7 @@
   }
 
   photoInput.addEventListener('change', () => {
-    handlePhotoFile(photoInput.files && photoInput.files[0]);
+    handlePhotoFiles(photoInput.files);
   });
 
   dropzone.addEventListener('click', () => photoInput.click());
@@ -1721,24 +1577,23 @@
   dropzone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropzone.classList.remove('drag-over');
-    const file = e.dataTransfer.files && e.dataTransfer.files[0];
-    handlePhotoFile(file);
+    handlePhotoFiles(e.dataTransfer.files);
   });
 
   removePhotoBtn.addEventListener('click', resetPhotoField);
+  removeBulkBtn.addEventListener('click', resetPhotoField);
 
   addForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentUser || !accessToken) return;
-    if (!pendingPhotoBlob) {
-      formMsg.textContent = '請先選擇一張照片。';
+    if (!pendingPhotoBlob && pendingBulkFiles.length === 0) {
+      formMsg.textContent = '請先選擇照片。';
       formMsg.className = 'err';
       return;
     }
     const location = document.getElementById('locationSelect').value;
     const pikmin = document.getElementById('pikminSelect').value;
     const floral = document.getElementById('pointTypeSelect').value;
-    const name = nameInput.value.trim();
     const sent = sentBtn.classList.contains('active');
     const received = receivedBtn.classList.contains('active');
     const favorite = favoriteBtn.classList.contains('active');
@@ -1748,20 +1603,44 @@
 
     saveBtn.disabled = true;
     formMsg.className = '';
-    formMsg.innerHTML = `<span class="spinner"></span>上傳中...`;
     uploadProgress.style.display = 'block';
     uploadProgressBar.style.width = '0%';
 
     try {
-      await driveUploadPostcard(pendingPhotoBlob, { name, location, pikmin, floral, sent, received, favorite, customTag, coords, notes }, (pct) => {
-        uploadProgressBar.style.width = pct + '%';
-        formMsg.innerHTML = `<span class="spinner"></span>上傳中... ${pct}%`;
-      });
-      formMsg.textContent = '已儲存!';
-      formMsg.className = 'ok';
+      if (pendingBulkFiles.length > 0) {
+        // bulk mode: same classification applied to every photo, no name/OCR
+        const sharedMeta = { name: '', location, pikmin, floral, sent, received, favorite, customTag, coords, notes };
+        let okCount = 0, failCount = 0;
+        for (let i = 0; i < pendingBulkFiles.length; i++) {
+          formMsg.innerHTML = `<span class="spinner"></span>上傳中... (${i + 1}/${pendingBulkFiles.length})`;
+          uploadProgressBar.style.width = Math.round((i / pendingBulkFiles.length) * 100) + '%';
+          try {
+            const resized = await resizeImage(pendingBulkFiles[i], 1000, 0.85);
+            await driveUploadPostcard(resized, sharedMeta, () => {});
+            okCount++;
+          } catch (err) {
+            failCount++;
+            if (String(err.message || err).includes('登入已過期')) { doForceLogout(); break; }
+          }
+        }
+        uploadProgressBar.style.width = '100%';
+        formMsg.textContent = failCount > 0
+          ? `完成:成功 ${okCount} 張,失敗 ${failCount} 張`
+          : `完成:已上傳 ${okCount} 張`;
+        formMsg.className = failCount > 0 ? 'err' : 'ok';
+      } else {
+        const name = nameInput.value.trim();
+        formMsg.innerHTML = `<span class="spinner"></span>上傳中...`;
+        await driveUploadPostcard(pendingPhotoBlob, { name, location, pikmin, floral, sent, received, favorite, customTag, coords, notes }, (pct) => {
+          uploadProgressBar.style.width = pct + '%';
+          formMsg.innerHTML = `<span class="spinner"></span>上傳中... ${pct}%`;
+        });
+        formMsg.textContent = '已儲存!';
+        formMsg.className = 'ok';
+      }
       await loadPostcards();
       if (allSection.style.display !== 'none') renderAllGrid();
-      setTimeout(closeAddModal, 600);
+      setTimeout(closeAddModal, 900);
     } catch (err) {
       formMsg.textContent = '儲存失敗: ' + (err.message || err);
       formMsg.className = 'err';
