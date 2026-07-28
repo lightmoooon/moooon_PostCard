@@ -128,20 +128,55 @@
   #loginView p { color: var(--text-muted); max-width: 320px; margin: 0; }
   #loginError { color: var(--danger); font-size: 13px; min-height: 18px; }
 
-  /* ---- filters ---- */
-  .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-  .filters > div { flex: 1; min-width: 140px; }
-  .filters label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
-  .filters select {
+  /* ---- top controls + collapsible filter sidebar ---- */
+  .top-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .all-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  @media (max-width: 639px) {
+    .all-body { flex-direction: column; }
+  }
+  .filter-sidebar {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+  @media (min-width: 640px) {
+    .filter-sidebar { width: 220px; }
+  }
+  .all-grid-wrap { flex: 1; min-width: 0; }
+  .accordion-section {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .accordion-header {
+    appearance: none;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border: none;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .accordion-header:hover { color: var(--accent-strong); }
+  .accordion-body { padding: 10px 12px; background: var(--bg); }
+  .accordion-body select {
     width: 100%; padding: 8px 9px; border-radius: 9px; border: 1px solid var(--border);
     background: var(--bg); color: var(--text); font-size: 13.5px; font-family: inherit;
   }
-  .check-group { display: flex; align-items: center; gap: 14px; min-height: 34px; }
-  .check-group label {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 13.5px; color: var(--text); margin: 0; font-weight: 400; cursor: pointer;
-  }
-  .check-group input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
 
   .toggle-group { display: flex; gap: 8px; flex-wrap: wrap; }
   .toggle-btn {
@@ -486,67 +521,76 @@
       </div>
     </header>
 
-    <div class="card" id="recentSection">
-      <h2 class="section-title">
-        <button type="button" class="star-toggle active" id="homeFavToggle" aria-label="切換顯示我的最愛/最近上傳">⭐</button>
-        <span id="recentSectionTitleText">我的最愛</span>
-      </h2>
-      <div class="grid grid-recent" id="recentGrid"></div>
-      <div class="row-actions">
-        <button class="btn secondary" id="showAllBtn">顯示全部</button>
+    <div class="card" id="allSection">
+      <div class="top-controls">
+        <button type="button" class="star-toggle" id="favToggleBtn" aria-label="只顯示珍藏">⭐</button>
+        <button type="button" class="btn secondary" id="sidebarToggleBtn">分類篩選</button>
+        <div class="toggle-group">
+          <button type="button" class="toggle-btn active" id="sortNewestBtn">最晚到最早</button>
+          <button type="button" class="toggle-btn" id="sortOldestBtn">最早到最晚</button>
+        </div>
       </div>
-    </div>
 
-    <div class="card" id="allSection" style="display:none">
-      <h2>所有明信片</h2>
-      <div class="filters">
-        <div>
-          <label for="filterLocation">依地點</label>
-          <select id="filterLocation">
-            <option value="">全部地點</option>
-            <option value="__uncat__">未歸類</option>
-            <option>台灣</option><option>亞洲</option><option>歐洲</option><option>非洲</option>
-            <option>大洋洲</option><option>北美洲</option><option>南美洲</option><option>南極洲</option>
-          </select>
-        </div>
-        <div>
-          <label for="filterPikmin">依皮克敏</label>
-          <select id="filterPikmin">
-            <option value="">全部</option>
-            <option value="__uncat__">未歸類</option>
-            <option>大頭照</option><option>1皮</option><option>2皮</option>
-            <option>3皮</option><option>4皮</option><option>5皮</option>
-          </select>
-        </div>
-        <div>
-          <label for="filterFloral">依獲取方式</label>
-          <select id="filterFloral">
-            <option value="">全部</option>
-            <option value="__uncat__">未歸類</option>
-            <option>花點</option><option>菇點</option><option>探險</option><option>隱藏</option>
-          </select>
-        </div>
-        <div id="filterCustomTagWrap" style="display:none">
-          <label for="filterCustomTag">依自定義標籤</label>
-          <select id="filterCustomTag">
-            <option value="">全部</option>
-          </select>
-        </div>
-        <div>
-          <div class="toggle-group">
-            <button type="button" class="toggle-btn" id="filterSentBtn">寄出</button>
-            <button type="button" class="toggle-btn" id="filterReceivedBtn">收到</button>
+      <div class="all-body">
+        <aside class="filter-sidebar" id="filterSidebar" style="display:none">
+          <div class="accordion-section">
+            <button type="button" class="accordion-header" data-acc-target="accBodyLocation">地點</button>
+            <div class="accordion-body" id="accBodyLocation" style="display:none">
+              <select id="filterLocation">
+                <option value="">全部地點</option>
+                <option value="__uncat__">未歸類</option>
+                <option>台灣</option><option>亞洲</option><option>歐洲</option><option>非洲</option>
+                <option>大洋洲</option><option>北美洲</option><option>南美洲</option><option>南極洲</option>
+              </select>
+            </div>
           </div>
-        </div>
-        <div>
-          <div class="toggle-group">
-            <button type="button" class="toggle-btn" id="filterUncategorizedBtn">未歸類</button>
+          <div class="accordion-section">
+            <button type="button" class="accordion-header" data-acc-target="accBodyPikmin">皮克敏</button>
+            <div class="accordion-body" id="accBodyPikmin" style="display:none">
+              <select id="filterPikmin">
+                <option value="">全部</option>
+                <option value="__uncat__">未歸類</option>
+                <option>大頭照</option><option>1皮</option><option>2皮</option>
+                <option>3皮</option><option>4皮</option><option>5皮</option><option>倒吊</option>
+              </select>
+            </div>
           </div>
+          <div class="accordion-section">
+            <button type="button" class="accordion-header" data-acc-target="accBodyFloral">獲取方式</button>
+            <div class="accordion-body" id="accBodyFloral" style="display:none">
+              <select id="filterFloral">
+                <option value="">全部</option>
+                <option value="__uncat__">未歸類</option>
+                <option>花點</option><option>菇點</option><option>探險</option><option>隱藏</option>
+              </select>
+            </div>
+          </div>
+          <div class="accordion-section">
+            <button type="button" class="accordion-header" data-acc-target="accBodyCustomTag">自定義標籤</button>
+            <div class="accordion-body" id="accBodyCustomTag" style="display:none">
+              <div class="tag-chip-row" id="filterCustomTagChips"></div>
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="filterCustomTagInput" placeholder="新增標籤分類" style="flex:1;">
+                <button type="button" class="btn secondary" id="filterCustomTagAddBtn" style="flex-shrink:0;">新增</button>
+              </div>
+              <div class="tag-suggest-row" id="filterCustomTagSuggestions"></div>
+            </div>
+          </div>
+          <div class="accordion-section">
+            <button type="button" class="accordion-header" data-acc-target="accBodyOther">其他</button>
+            <div class="accordion-body" id="accBodyOther" style="display:none">
+              <div class="toggle-group">
+                <button type="button" class="toggle-btn" id="filterSentBtn">寄出</button>
+                <button type="button" class="toggle-btn" id="filterReceivedBtn">收到</button>
+                <button type="button" class="toggle-btn" id="filterUncategorizedBtn">未歸類</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div class="all-grid-wrap">
+          <div class="grid grid-all" id="allGrid"></div>
         </div>
-      </div>
-      <div class="grid grid-all" id="allGrid"></div>
-      <div class="row-actions">
-        <button class="btn secondary" id="backToRecentBtn">收合</button>
       </div>
     </div>
   </div>
@@ -598,7 +642,7 @@
         <select id="pikminSelect">
           <option value="">請選擇</option>
           <option>大頭照</option><option>1皮</option><option>2皮</option>
-          <option>3皮</option><option>4皮</option><option>5皮</option>
+          <option>3皮</option><option>4皮</option><option>5皮</option><option>倒吊</option>
         </select>
       </div>
       <div class="field">
@@ -618,11 +662,11 @@
         <div class="tag-suggest-row" id="customTagSuggestions"></div>
       </div>
       <div class="field">
-        <label>寄出 / 收到 / 我的最愛</label>
+        <label>寄出 / 收到 / 珍藏</label>
         <div class="toggle-group">
           <button type="button" class="toggle-btn" id="sentBtn">已寄出</button>
           <button type="button" class="toggle-btn" id="receivedBtn">已收到</button>
-          <button type="button" class="toggle-btn" id="favoriteBtn">⭐ 我的最愛</button>
+          <button type="button" class="toggle-btn" id="favoriteBtn">⭐ 珍藏</button>
         </div>
       </div>
       <div class="field" id="coordFieldWrap">
@@ -664,7 +708,7 @@
         <select id="editPikminSelect">
           <option value="">請選擇</option>
           <option>大頭照</option><option>1皮</option><option>2皮</option>
-          <option>3皮</option><option>4皮</option><option>5皮</option>
+          <option>3皮</option><option>4皮</option><option>5皮</option><option>倒吊</option>
         </select>
       </div>
       <div class="field">
@@ -684,11 +728,11 @@
         <div class="tag-suggest-row" id="editCustomTagSuggestions"></div>
       </div>
       <div class="field">
-        <label>寄出 / 收到 / 我的最愛</label>
+        <label>寄出 / 收到 / 珍藏</label>
         <div class="toggle-group">
           <button type="button" class="toggle-btn" id="editSentBtn">已寄出</button>
           <button type="button" class="toggle-btn" id="editReceivedBtn">已收到</button>
-          <button type="button" class="toggle-btn" id="editFavoriteBtn">⭐ 我的最愛</button>
+          <button type="button" class="toggle-btn" id="editFavoriteBtn">⭐ 珍藏</button>
         </div>
       </div>
       <div class="field">
@@ -740,22 +784,23 @@
   const userAvatar = document.getElementById('userAvatar');
   const userName = document.getElementById('userName');
 
-  const recentGrid = document.getElementById('recentGrid');
   const allGrid = document.getElementById('allGrid');
   const allSection = document.getElementById('allSection');
-  const recentSection = document.getElementById('recentSection');
-  const recentSectionTitleText = document.getElementById('recentSectionTitleText');
-  const homeFavToggle = document.getElementById('homeFavToggle');
-  const showAllBtn = document.getElementById('showAllBtn');
-  const backToRecentBtn = document.getElementById('backToRecentBtn');
+  const favToggleBtn = document.getElementById('favToggleBtn');
+  const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+  const filterSidebar = document.getElementById('filterSidebar');
+  const sortNewestBtn = document.getElementById('sortNewestBtn');
+  const sortOldestBtn = document.getElementById('sortOldestBtn');
   const filterLocation = document.getElementById('filterLocation');
   const filterPikmin = document.getElementById('filterPikmin');
   const filterFloral = document.getElementById('filterFloral');
   const filterSentBtn = document.getElementById('filterSentBtn');
   const filterReceivedBtn = document.getElementById('filterReceivedBtn');
   const filterUncategorizedBtn = document.getElementById('filterUncategorizedBtn');
-  const filterCustomTagWrap = document.getElementById('filterCustomTagWrap');
-  const filterCustomTag = document.getElementById('filterCustomTag');
+  const filterCustomTagChips = document.getElementById('filterCustomTagChips');
+  const filterCustomTagInput = document.getElementById('filterCustomTagInput');
+  const filterCustomTagAddBtn = document.getElementById('filterCustomTagAddBtn');
+  const filterCustomTagSuggestions = document.getElementById('filterCustomTagSuggestions');
 
   const addModalBackdrop = document.getElementById('addModalBackdrop');
   const addForm = document.getElementById('addForm');
@@ -809,6 +854,7 @@
 
   const addTagCtrl = makeTagChipController(customTagChips, customTagInput, customTagSuggestions, customTagAddBtn);
   const editTagCtrl = makeTagChipController(editCustomTagChips, editCustomTagInput, editCustomTagSuggestions, editCustomTagAddBtn);
+  const filterTagCtrl = makeTagChipController(filterCustomTagChips, filterCustomTagInput, filterCustomTagSuggestions, filterCustomTagAddBtn, () => renderAllGrid());
 
   let accessToken = null;
   let currentUser = null;
@@ -825,16 +871,34 @@
 
   // Every custom tag ever typed (across all postcards) becomes a reusable
   // suggestion — once you've created one, you can just click it next time
-  // instead of retyping it.
+  // instead of retyping it. Tags declared straight from the sidebar filter
+  // (before any postcard actually uses them yet) are kept in localStorage so
+  // they still show up as selectable options.
+  const DECLARED_TAGS_KEY = 'pikminPostcardsDeclaredTags';
+  function getDeclaredCustomTags() {
+    try { return JSON.parse(localStorage.getItem(DECLARED_TAGS_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function declareCustomTag(tag) {
+    try {
+      const existing = getDeclaredCustomTags();
+      if (!existing.includes(tag)) {
+        existing.push(tag);
+        localStorage.setItem(DECLARED_TAGS_KEY, JSON.stringify(existing));
+      }
+    } catch (e) { /* localStorage unavailable — the tag still works, just won't be pre-declared */ }
+  }
   function getAllKnownCustomTags() {
-    return Array.from(new Set(allPostcardsCache.flatMap(p => p.customTags || []))).sort();
+    return Array.from(new Set([
+      ...allPostcardsCache.flatMap(p => p.customTags || []),
+      ...getDeclaredCustomTags()
+    ])).sort();
   }
 
   // Drives one postcard's tag-chip input: an always-visible list of chips
   // already added (each removable), a text box that adds a new chip on
   // Enter, and a row of previously-used tags you can click to reuse instead
   // of retyping.
-  function makeTagChipController(chipsEl, inputEl, suggestEl, addBtnEl) {
+  function makeTagChipController(chipsEl, inputEl, suggestEl, addBtnEl, onChange) {
     let tags = [];
     function render() {
       chipsEl.innerHTML = tags.map((t, i) =>
@@ -848,19 +912,20 @@
     function addFromInput() {
       const v = inputEl.value.trim();
       inputEl.value = '';
-      if (v && !tags.includes(v)) { tags.push(v); render(); }
+      if (v && !tags.includes(v)) { tags.push(v); declareCustomTag(v); render(); if (onChange) onChange(); }
     }
     chipsEl.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-remove-tag]');
       if (!btn) return;
       tags.splice(parseInt(btn.getAttribute('data-remove-tag'), 10), 1);
       render();
+      if (onChange) onChange();
     });
     suggestEl.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-pick-tag]');
       if (!btn) return;
       const t = btn.getAttribute('data-pick-tag');
-      if (!tags.includes(t)) { tags.push(t); render(); }
+      if (!tags.includes(t)) { tags.push(t); render(); if (onChange) onChange(); }
     });
     inputEl.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
@@ -873,7 +938,8 @@
     if (addBtnEl) addBtnEl.addEventListener('click', addFromInput);
     return {
       get: () => tags.slice(),
-      set: (arr) => { tags = Array.isArray(arr) ? [...arr] : []; render(); }
+      set: (arr) => { tags = Array.isArray(arr) ? [...arr] : []; render(); },
+      refresh: render
     };
   }
 
@@ -961,8 +1027,6 @@
     loginView.style.display = '';
     appView.style.display = 'none';
     addBtn.style.display = 'none';
-    allSection.style.display = 'none';
-    recentSection.style.display = '';
   });
 
   async function onLoginSuccess() {
@@ -978,6 +1042,7 @@
     userAvatar.src = profile.picture || '';
     userName.textContent = profile.name || profile.email || '';
     await loadPostcards();
+    restoreEditDraftIfAny();
   }
 
   // ---- Drive API helpers ----
@@ -1112,6 +1177,7 @@
   // ---- rendering ----
   function skeletonCardHtml(pc) {
     const tags = [];
+    if (pc.location) tags.push(`<span class="tag">${escapeHtml(pc.location)}</span>`);
     if (pc.pikmin) tags.push(`<span class="tag">${escapeHtml(pc.pikmin)}</span>`);
     if (pc.floral) tags.push(`<span class="tag">${escapeHtml(pc.floral)}</span>`);
     if (pc.sent) tags.push(`<span class="tag">已寄出</span>`);
@@ -1119,11 +1185,11 @@
     (pc.customTags || []).forEach(t => tags.push(`<span class="tag">${escapeHtml(t)}</span>`));
     return `
       <div class="pc-card" data-id="${escapeHtml(pc.id)}">
-        <button class="fav-btn${pc.favorite ? ' active' : ''}" type="button" data-fav="${escapeHtml(pc.id)}" aria-label="切換我的最愛">⭐</button>
+        <button class="fav-btn${pc.favorite ? ' active' : ''}" type="button" data-fav="${escapeHtml(pc.id)}" aria-label="切換珍藏">⭐</button>
         <button class="del-btn" type="button" data-del="${escapeHtml(pc.id)}" aria-label="刪除">✕</button>
         <img class="thumb" data-photo-for="${escapeHtml(pc.id)}" alt="明信片" src="">
         <div class="meta">
-          <div class="loc">${escapeHtml(pc.location || '未設定地點')}</div>
+          <div class="loc">${escapeHtml(pc.name || '')}</div>
           <div class="coord">${escapeHtml(pc.coords || '未填座標')}</div>
           <div class="tags">${tags.join('')}</div>
           ${pc.notes ? `<div class="note">${escapeHtml(pc.notes)}</div>` : ''}
@@ -1146,52 +1212,30 @@
     });
   }
 
-  // The home section's star toggle picks between two modes: favorites
-  // (default) or the 10 most-recently uploaded postcards. Defaults to
-  // favorites mode regardless of whether any postcard is actually favorited
-  // yet — no automatic fallback; the user switches modes with the star.
-  let homeShowFavorites = true;
+  // No more separate "home" page — the all-postcards list (filterable +
+  // sortable) is the one and only view shown after login.
+  let onlyFavorites = false;
+  let sortDirection = 'desc'; // 'asc' = 最早到最晚, 'desc' = 最晚到最早
 
-  function homeEmptyHintHtml() {
+  function emptyGridHintHtml() {
     // Brand-new account with zero postcards at all — give a direct button
     // rather than just pointing at the floating action button elsewhere.
     if (allPostcardsCache.length === 0) {
       return `<div class="empty-hint"><button type="button" class="btn primary" id="emptyAddBtn">＋ 存入明信片</button></div>`;
     }
-    return homeShowFavorites
-      ? `<div class="empty-hint">還沒有標記任何「我的最愛」,點卡片左上角的星星加入最愛,或點上方星星切換看最近上傳。</div>`
-      : `<div class="empty-hint">目前沒有明信片。</div>`;
+    return `<div class="empty-hint">沒有符合篩選條件的明信片。</div>`;
   }
-
-  function getHomeGridItems() {
-    recentSectionTitleText.textContent = homeShowFavorites ? '我的最愛' : '最近 9 張明信片';
-    homeFavToggle.classList.toggle('active', homeShowFavorites);
-    return homeShowFavorites
-      ? allPostcardsCache.filter(p => p.favorite).slice(0, 9)
-      : allPostcardsCache.slice(0, 9);
-  }
-
-  homeFavToggle.addEventListener('click', () => {
-    homeShowFavorites = !homeShowFavorites;
-    renderRecentFromCache();
-  });
 
   async function loadPostcards() {
-    recentGrid.innerHTML = `<div class="empty-hint">載入中...</div>`;
+    allGrid.innerHTML = `<div class="empty-hint">載入中...</div>`;
     try {
       allPostcardsCache = await driveListPostcards();
     } catch (err) {
-      recentGrid.innerHTML = `<div class="empty-hint">${escapeHtml(err.message || err)}</div>`;
+      allGrid.innerHTML = `<div class="empty-hint">${escapeHtml(err.message || err)}</div>`;
       if (String(err.message).includes('登入已過期')) doForceLogout();
       return;
     }
-    const recent = getHomeGridItems();
-    if (recent.length === 0) {
-      recentGrid.innerHTML = homeEmptyHintHtml();
-    } else {
-      recentGrid.innerHTML = recent.map(skeletonCardHtml).join('');
-      hydrateThumbnails(recentGrid, recent);
-    }
+    renderAllGrid();
   }
 
   const UNCAT = '__uncat__';
@@ -1205,47 +1249,158 @@
     const fSent = filterSentBtn.classList.contains('active');
     const fReceived = filterReceivedBtn.classList.contains('active');
     const fUncat = filterUncategorizedBtn.classList.contains('active');
-    const fCustom = filterCustomTag.value;
+    const fCustomTags = filterTagCtrl.get();
     return list.filter(p =>
+      (!onlyFavorites || p.favorite) &&
       matchField(p.location, fLoc) &&
       matchField(p.pikmin, fPik) &&
       matchField(p.floral, fFlo) &&
       (!fSent || p.sent) &&
       (!fReceived || p.received) &&
       (!fUncat || (!p.location && !p.pikmin && !p.floral)) &&
-      (!fCustom || (p.customTags || []).includes(fCustom))
+      (!fCustomTags.length || fCustomTags.some(t => (p.customTags || []).includes(t)))
     );
   }
 
-  // The custom-tag filter is only meaningful once at least one postcard
-  // actually uses a custom tag — its option list is built from whatever
-  // values are currently in use, and the whole control stays hidden otherwise.
-  function refreshCustomTagFilterOptions() {
-    const tags = getAllKnownCustomTags();
-    if (tags.length === 0) {
-      filterCustomTagWrap.style.display = 'none';
-      filterCustomTag.innerHTML = '<option value="">全部</option>';
-      return;
-    }
-    const prevValue = filterCustomTag.value;
-    filterCustomTag.innerHTML = '<option value="">全部</option>' +
-      tags.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-    filterCustomTag.value = tags.includes(prevValue) ? prevValue : '';
-    filterCustomTagWrap.style.display = '';
+  // Primary sort is upload time (direction picked via the two sort buttons);
+  // a batch upload lands a whole group of postcards on the same timestamp,
+  // so ties fall back to sorting by name A→Z.
+  function sortPostcards(list) {
+    return list.slice().sort((a, b) => {
+      const ta = new Date(a.createdTime).getTime();
+      const tb = new Date(b.createdTime).getTime();
+      if (ta !== tb) return sortDirection === 'asc' ? ta - tb : tb - ta;
+      return (a.name || '').localeCompare(b.name || '');
+    });
   }
 
   function renderAllGrid() {
-    refreshCustomTagFilterOptions();
-    const list = applyFilters(allPostcardsCache);
+    filterTagCtrl.refresh();
+    const list = sortPostcards(applyFilters(allPostcardsCache));
     if (list.length === 0) {
-      allGrid.innerHTML = `<div class="empty-hint">沒有符合篩選條件的明信片。</div>`;
+      allGrid.innerHTML = emptyGridHintHtml();
       return;
     }
     allGrid.innerHTML = list.map(skeletonCardHtml).join('');
     hydrateThumbnails(allGrid, list);
   }
 
+  favToggleBtn.addEventListener('click', () => {
+    onlyFavorites = !onlyFavorites;
+    favToggleBtn.classList.toggle('active', onlyFavorites);
+    renderAllGrid();
+  });
+
+  sortNewestBtn.addEventListener('click', () => {
+    sortDirection = 'desc';
+    sortNewestBtn.classList.add('active');
+    sortOldestBtn.classList.remove('active');
+    renderAllGrid();
+  });
+  sortOldestBtn.addEventListener('click', () => {
+    sortDirection = 'asc';
+    sortOldestBtn.classList.add('active');
+    sortNewestBtn.classList.remove('active');
+    renderAllGrid();
+  });
+
+  sidebarToggleBtn.addEventListener('click', () => {
+    filterSidebar.style.display = filterSidebar.style.display === 'none' ? '' : 'none';
+  });
+  filterSidebar.addEventListener('click', (e) => {
+    const header = e.target.closest('.accordion-header');
+    if (!header) return;
+    const body = document.getElementById(header.getAttribute('data-acc-target'));
+    if (!body) return;
+    body.style.display = body.style.display === 'none' ? '' : 'none';
+  });
+
+  // Google access tokens can't be extended past Google's own ~1hr limit, so
+  // instead: if a forced logout happens while the add/edit modal is open,
+  // save the in-progress field values (not the photo — blobs don't survive
+  // localStorage) and restore them into a reopened modal after the next
+  // successful login, so the user doesn't lose what they'd typed.
+  const EDIT_DRAFT_KEY = 'pikminPostcardsEditDraft';
+  function saveEditDraft() {
+    try {
+      if (addModalBackdrop.style.display === 'flex') {
+        localStorage.setItem(EDIT_DRAFT_KEY, JSON.stringify({
+          mode: 'add',
+          name: nameInput.value,
+          location: document.getElementById('locationSelect').value,
+          pikmin: document.getElementById('pikminSelect').value,
+          floral: document.getElementById('pointTypeSelect').value,
+          sent: sentBtn.classList.contains('active'),
+          received: receivedBtn.classList.contains('active'),
+          favorite: favoriteBtn.classList.contains('active'),
+          customTags: addTagCtrl.get(),
+          coords: document.getElementById('coordInput').value,
+          notes: document.getElementById('notesInput').value
+        }));
+      } else if (editModalBackdrop.style.display === 'flex' && editingId) {
+        localStorage.setItem(EDIT_DRAFT_KEY, JSON.stringify({
+          mode: 'edit',
+          editingId,
+          name: editNameInput.value,
+          location: editLocationSelect.value,
+          pikmin: editPikminSelect.value,
+          floral: editPointTypeSelect.value,
+          sent: editSentBtn.classList.contains('active'),
+          received: editReceivedBtn.classList.contains('active'),
+          favorite: editFavoriteBtn.classList.contains('active'),
+          customTags: editTagCtrl.get(),
+          coords: editCoordInput.value,
+          notes: editNotesInput.value
+        }));
+      }
+    } catch (e) { /* localStorage unavailable — draft just won't survive */ }
+  }
+  function loadEditDraft() {
+    try { return JSON.parse(localStorage.getItem(EDIT_DRAFT_KEY) || 'null'); } catch (e) { return null; }
+  }
+  function clearEditDraft() {
+    try { localStorage.removeItem(EDIT_DRAFT_KEY); } catch (e) { /* ignore */ }
+  }
+  function restoreEditDraftIfAny() {
+    const draft = loadEditDraft();
+    if (!draft) return;
+    clearEditDraft();
+    if (draft.mode === 'add') {
+      openAddModal();
+      nameInput.value = draft.name || '';
+      document.getElementById('locationSelect').value = draft.location || '';
+      document.getElementById('pikminSelect').value = draft.pikmin || '';
+      document.getElementById('pointTypeSelect').value = draft.floral || '';
+      sentBtn.classList.toggle('active', !!draft.sent);
+      receivedBtn.classList.toggle('active', !!draft.received);
+      favoriteBtn.classList.toggle('active', !!draft.favorite);
+      addTagCtrl.set(draft.customTags || []);
+      document.getElementById('coordInput').value = draft.coords || '';
+      document.getElementById('notesInput').value = draft.notes || '';
+      formMsg.textContent = '已還原上次未完成的內容,請重新選擇照片。';
+      formMsg.className = 'ok';
+    } else if (draft.mode === 'edit') {
+      if (!allPostcardsCache.find(p => p.id === draft.editingId)) return; // postcard no longer exists
+      openEditModal(draft.editingId);
+      editNameInput.value = draft.name || '';
+      editLocationSelect.value = draft.location || '';
+      editPikminSelect.value = draft.pikmin || '';
+      editPointTypeSelect.value = draft.floral || '';
+      editSentBtn.classList.toggle('active', !!draft.sent);
+      editReceivedBtn.classList.toggle('active', !!draft.received);
+      editFavoriteBtn.classList.toggle('active', !!draft.favorite);
+      editTagCtrl.set(draft.customTags || []);
+      editCoordInput.value = draft.coords || '';
+      editNotesInput.value = draft.notes || '';
+      editFormMsg.textContent = '已還原上次未完成的編輯內容。';
+      editFormMsg.className = 'ok';
+    }
+  }
+
   function doForceLogout() {
+    saveEditDraft();
+    if (addModalBackdrop.style.display === 'flex') closeAddModal();
+    if (editModalBackdrop.style.display === 'flex') closeEditModal();
     accessToken = null;
     currentUser = null;
     loginView.style.display = '';
@@ -1253,16 +1408,7 @@
     addBtn.style.display = 'none';
   }
 
-  showAllBtn.addEventListener('click', () => {
-    recentSection.style.display = 'none';
-    allSection.style.display = '';
-    renderAllGrid();
-  });
-  backToRecentBtn.addEventListener('click', () => {
-    allSection.style.display = 'none';
-    recentSection.style.display = '';
-  });
-  [filterLocation, filterPikmin, filterFloral, filterCustomTag].forEach(sel => sel.addEventListener('change', renderAllGrid));
+  [filterLocation, filterPikmin, filterFloral].forEach(sel => sel.addEventListener('change', renderAllGrid));
   [filterSentBtn, filterReceivedBtn, filterUncategorizedBtn].forEach(btn => {
     btn.addEventListener('click', () => { btn.classList.toggle('active'); renderAllGrid(); });
   });
@@ -1275,7 +1421,6 @@
     try {
       await driveDeletePostcard(id);
       allPostcardsCache = allPostcardsCache.filter(p => p.id !== id);
-      renderRecentFromCache();
       renderAllGrid();
     } catch (err) {
       alert(err.message || err);
@@ -1300,7 +1445,6 @@
         customTag: (pc.customTags || []).join('|'), coords: pc.coords, notes: pc.notes
       });
       pc.favorite = nextFavorite;
-      renderRecentFromCache();
       renderAllGrid();
     } catch (err) {
       alert(err.message || err);
@@ -1356,7 +1500,6 @@
     try {
       await driveDeletePostcard(editingId);
       allPostcardsCache = allPostcardsCache.filter(p => p.id !== editingId);
-      renderRecentFromCache();
       renderAllGrid();
       closeEditModal();
     } catch (err) {
@@ -1392,7 +1535,6 @@
       if (idx !== -1) {
         allPostcardsCache[idx] = Object.assign({}, allPostcardsCache[idx], { name, location, pikmin, floral, sent, received, favorite, customTags, coords, notes });
       }
-      renderRecentFromCache();
       renderAllGrid();
       editFormMsg.textContent = '已更新!';
       editFormMsg.className = 'ok';
@@ -1405,16 +1547,6 @@
       editSaveBtn.disabled = false;
     }
   });
-
-  function renderRecentFromCache() {
-    const recent = getHomeGridItems();
-    if (recent.length === 0) {
-      recentGrid.innerHTML = homeEmptyHintHtml();
-      return;
-    }
-    recentGrid.innerHTML = recent.map(skeletonCardHtml).join('');
-    hydrateThumbnails(recentGrid, recent);
-  }
 
   // ---- add postcard modal ----
   function resizeImage(file, maxDim, quality) {
@@ -1796,7 +1928,6 @@
         formMsg.className = 'ok';
       }
       await loadPostcards();
-      if (allSection.style.display !== 'none') renderAllGrid();
       setTimeout(closeAddModal, 900);
     } catch (err) {
       formMsg.textContent = '儲存失敗: ' + (err.message || err);
