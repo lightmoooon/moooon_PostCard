@@ -1297,6 +1297,74 @@
     nameOcrStatus.textContent = '';
   }
 
+  function loadImageFromBlob(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('圖片無法讀取'));
+        img.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error('檔案讀取失敗'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // Grayscale + contrast boost before OCR — Tesseract reads flat, high-contrast
+  // text far more reliably than a color photo, especially once JPEG
+  // compression has softened small text edges. This only feeds the OCR pass;
+  // the original color photo is still what gets uploaded/saved.
+  async function preprocessForOcr(blob) {
+    const img = await loadImageFromBlob(blob);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    const contrast = 1.6;
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      const v = Math.max(0, Math.min(255, (gray - 128) * contrast + 128));
+      data[i] = data[i + 1] = data[i + 2] = v;
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('OCR 前處理失敗')), 'image/png');
+    });
+  }
+
+  // Pikmin Bloom postcard screenshots put the title (and sometimes a smaller
+  // subtitle line) as bold white/light text over a dark gradient in the
+  // top-left corner of the frame — everything else (the photo itself, the
+  // Pikmin characters, the stamp/logo panel) is pure noise for this purpose
+  // and was actively confusing whole-image OCR. Crop to just that corner and
+  // threshold it to pure black/white so only the bright title text survives.
+  async function cropTitleRegionForOcr(blob) {
+    const img = await loadImageFromBlob(blob);
+    const cropW = Math.round(img.width * 0.65);
+    const cropH = Math.round(img.height * 0.24);
+    const canvas = document.createElement('canvas');
+    canvas.width = cropW;
+    canvas.height = cropH;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, cropW, cropH, 0, 0, cropW, cropH);
+    const imageData = ctx.getImageData(0, 0, cropW, cropH);
+    const data = imageData.data;
+    const threshold = 175;
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      const v = gray >= threshold ? 255 : 0;
+      data[i] = data[i + 1] = data[i + 2] = v;
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('OCR 前處理失敗')), 'image/png');
+    });
+  }
+
   // Recognizing 20+ languages in one combined pass badly confuses visually
   // similar scripts (Chinese/Japanese Kanji, Latin look-alikes, etc.), so
   // Japanese/Korean text was coming back empty or wrong. Instead run a few
@@ -1312,6 +1380,50 @@
   // OCR-scans the photo for printed text and fills the name field with the
   // first non-empty recognized line; the field stays editable either way
   // since recognition accuracy depends heavily on the photo's text clarity.
+  // Tesseract's confidence score is only meaningful within one language
+  // model at a time — comparing raw confidence ACROSS mismatched language
+  // groups is unreliable. A Latin-only pass can "confidently" misread
+  // Japanese/Korean strokes as garbage Latin letters and beat the actually-
+  // correct pass's lower score, which is exactly what was happening.
+  // Detecting the dominant script first lets only the matching group run,
+  // instead of letting confidence arbitrate across scripts it can't fairly
+  // compare.
+  function scriptToLangGroup(script) {
+    const s = (script || '').toLowerCase();
+    if (s.includes('katakana') || s.includes('hiragana') || s.includes('han') || s.includes('japan')) return 'chi_tra+chi_sim+jpn+kor+eng';
+    if (s.includes('hangul') || s.includes('korean')) return 'kor+chi_tra+chi_sim+eng';
+    if (s.includes('cyrillic')) return 'rus+eng';
+    if (s.includes('arabic')) return 'ara+eng';
+    if (s.includes('devanagari')) return 'hin+eng';
+    if (s.includes('greek')) return 'ell+eng';
+    if (s.includes('latin')) return 'eng+fra+spa+por+deu+ita+nld+swe+ron+pol+dan+fin+msa+tur';
+    return null;
+  }
+
+  async function bestOcrLine(ocrBlob) {
+    let detectedGroup = null;
+    if (typeof Tesseract.detect === 'function') {
+      try {
+        const { data } = await Tesseract.detect(ocrBlob);
+        detectedGroup = scriptToLangGroup(data && data.script);
+      } catch (e) { /* detection unavailable/inconclusive — fall back to trying every group */ }
+    }
+
+    const groupsToTry = detectedGroup ? [detectedGroup] : OCR_LANG_GROUPS;
+    const results = await Promise.all(
+      groupsToTry.map(langs => Tesseract.recognize(ocrBlob, langs).catch(() => null))
+    );
+    let best = null;
+    for (const r of results) {
+      if (!r || !r.data) continue;
+      const line = (r.data.text || '').split('\n').map(s => s.trim()).find(s => s.length > 0) || '';
+      if (!line) continue;
+      const score = r.data.confidence || 0;
+      if (!best || score > best.score) best = { line, score };
+    }
+    return best;
+  }
+
   async function scanPostcardName(blob) {
     if (typeof Tesseract === 'undefined') {
       nameOcrStatus.textContent = '(文字辨識元件載入失敗,請自行輸入)';
@@ -1319,17 +1431,20 @@
     }
     nameOcrStatus.textContent = '辨識文字中...';
     try {
-      const results = await Promise.all(
-        OCR_LANG_GROUPS.map(langs => Tesseract.recognize(blob, langs).catch(() => null))
-      );
+      // Try the Pikmin Bloom title-corner crop first — it's fast and, for
+      // that specific layout, far more accurate than scanning the whole photo.
       let best = null;
-      for (const r of results) {
-        if (!r || !r.data) continue;
-        const line = (r.data.text || '').split('\n').map(s => s.trim()).find(s => s.length > 0) || '';
-        if (!line) continue;
-        const score = r.data.confidence || 0;
-        if (!best || score > best.score) best = { line, score };
+      try {
+        const titleCrop = await cropTitleRegionForOcr(blob);
+        best = await bestOcrLine(titleCrop);
+      } catch (e) { /* fall through to whole-image OCR below */ }
+
+      if (!best) {
+        let ocrBlob = blob;
+        try { ocrBlob = await preprocessForOcr(blob); } catch (e) { /* fall back to the original color photo */ }
+        best = await bestOcrLine(ocrBlob);
       }
+
       if (best) {
         nameInput.value = best.line;
         nameOcrStatus.textContent = '(已自動辨識,可自行修改)';
@@ -1397,7 +1512,10 @@
       previewWrap.style.display = 'block';
       dropzone.style.display = 'none';
       nameInput.value = '';
-      scanPostcardName(pendingPhotoBlob);
+      // OCR gets the original, uncompressed file — the resized/JPEG-compressed
+      // upload copy introduces just enough edge artifacts around text to
+      // break CJK character shapes, even though it still looks fine to the eye.
+      scanPostcardName(file);
     } catch (err) {
       formMsg.textContent = err.message || String(err);
       formMsg.className = 'err';
