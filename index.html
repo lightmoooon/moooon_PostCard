@@ -187,6 +187,11 @@
     .grid-recent { grid-template-columns: repeat(3, 1fr); }
     .grid-all { grid-template-columns: repeat(3, 1fr); }
   }
+  .grid-all {
+    max-height: 80vh;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
   .pc-card {
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -1046,11 +1051,11 @@
   }
 
   function getHomeGridItems() {
-    recentSectionTitleText.textContent = homeShowFavorites ? '我的最愛' : '最近 10 張明信片';
+    recentSectionTitleText.textContent = homeShowFavorites ? '我的最愛' : '最近 9 張明信片';
     homeFavToggle.classList.toggle('active', homeShowFavorites);
     return homeShowFavorites
-      ? allPostcardsCache.filter(p => p.favorite).slice(0, 10)
-      : allPostcardsCache.slice(0, 10);
+      ? allPostcardsCache.filter(p => p.favorite).slice(0, 9)
+      : allPostcardsCache.slice(0, 9);
   }
 
   homeFavToggle.addEventListener('click', () => {
