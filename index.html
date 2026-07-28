@@ -163,6 +163,49 @@
     font-weight: 600;
   }
 
+  .tag-chip-row, .tag-suggest-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tag-chip-row:not(:empty) { margin-bottom: 8px; }
+  .tag-suggest-row:not(:empty) { margin-top: 8px; }
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12.5px;
+    padding: 4px 6px 4px 10px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .tag-chip button {
+    appearance: none;
+    border: none;
+    background: rgba(0,0,0,0.15);
+    color: inherit;
+    border-radius: 50%;
+    width: 16px; height: 16px;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tag-suggest-chip {
+    appearance: none;
+    font-size: 12.5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .tag-suggest-chip:hover { border-color: var(--accent); color: var(--text); }
+
   .section-title { display: flex; align-items: center; gap: 8px; }
   .star-toggle {
     appearance: none;
@@ -566,11 +609,10 @@
         </select>
       </div>
       <div class="field">
-        <button type="button" class="btn secondary" id="customTagBtn">＋ 自定義標籤</button>
-        <div id="customTagFieldWrap" style="display:none; margin-top:10px;">
-          <label for="customTagInput">自定義標籤</label>
-          <input type="text" id="customTagInput" placeholder="自行輸入分類用的標籤">
-        </div>
+        <label for="customTagInput">自定義標籤</label>
+        <div class="tag-chip-row" id="customTagChips"></div>
+        <input type="text" id="customTagInput" placeholder="輸入標籤後按 Enter 新增">
+        <div class="tag-suggest-row" id="customTagSuggestions"></div>
       </div>
       <div class="field">
         <label>寄出 / 收到 / 我的最愛</label>
@@ -630,11 +672,10 @@
         </select>
       </div>
       <div class="field">
-        <button type="button" class="btn secondary" id="editCustomTagBtn">＋ 自定義標籤</button>
-        <div id="editCustomTagFieldWrap" style="display:none; margin-top:10px;">
-          <label for="editCustomTagInput">自定義標籤</label>
-          <input type="text" id="editCustomTagInput" placeholder="自行輸入分類用的標籤">
-        </div>
+        <label for="editCustomTagInput">自定義標籤</label>
+        <div class="tag-chip-row" id="editCustomTagChips"></div>
+        <input type="text" id="editCustomTagInput" placeholder="輸入標籤後按 Enter 新增">
+        <div class="tag-suggest-row" id="editCustomTagSuggestions"></div>
       </div>
       <div class="field">
         <label>寄出 / 收到 / 我的最愛</label>
@@ -726,9 +767,9 @@
   const sentBtn = document.getElementById('sentBtn');
   const receivedBtn = document.getElementById('receivedBtn');
   const favoriteBtn = document.getElementById('favoriteBtn');
-  const customTagBtn = document.getElementById('customTagBtn');
-  const customTagFieldWrap = document.getElementById('customTagFieldWrap');
+  const customTagChips = document.getElementById('customTagChips');
   const customTagInput = document.getElementById('customTagInput');
+  const customTagSuggestions = document.getElementById('customTagSuggestions');
   const nameFieldWrap = document.getElementById('nameFieldWrap');
   const coordFieldWrap = document.getElementById('coordFieldWrap');
   const nameInput = document.getElementById('nameInput');
@@ -746,9 +787,9 @@
   const editSentBtn = document.getElementById('editSentBtn');
   const editReceivedBtn = document.getElementById('editReceivedBtn');
   const editFavoriteBtn = document.getElementById('editFavoriteBtn');
-  const editCustomTagBtn = document.getElementById('editCustomTagBtn');
-  const editCustomTagFieldWrap = document.getElementById('editCustomTagFieldWrap');
+  const editCustomTagChips = document.getElementById('editCustomTagChips');
   const editCustomTagInput = document.getElementById('editCustomTagInput');
+  const editCustomTagSuggestions = document.getElementById('editCustomTagSuggestions');
   const editNameInput = document.getElementById('editNameInput');
   const editCoordInput = document.getElementById('editCoordInput');
   const editNotesInput = document.getElementById('editNotesInput');
@@ -757,6 +798,9 @@
   const editCancelBtn = document.getElementById('editCancelBtn');
   const editSaveBtn = document.getElementById('editSaveBtn');
   let editingId = null;
+
+  const addTagCtrl = makeTagChipController(customTagChips, customTagInput, customTagSuggestions);
+  const editTagCtrl = makeTagChipController(editCustomTagChips, editCustomTagInput, editCustomTagSuggestions);
 
   let accessToken = null;
   let currentUser = null;
@@ -769,6 +813,53 @@
     return String(s ?? '')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  }
+
+  // Every custom tag ever typed (across all postcards) becomes a reusable
+  // suggestion — once you've created one, you can just click it next time
+  // instead of retyping it.
+  function getAllKnownCustomTags() {
+    return Array.from(new Set(allPostcardsCache.flatMap(p => p.customTags || []))).sort();
+  }
+
+  // Drives one postcard's tag-chip input: an always-visible list of chips
+  // already added (each removable), a text box that adds a new chip on
+  // Enter, and a row of previously-used tags you can click to reuse instead
+  // of retyping.
+  function makeTagChipController(chipsEl, inputEl, suggestEl) {
+    let tags = [];
+    function render() {
+      chipsEl.innerHTML = tags.map((t, i) =>
+        `<span class="tag-chip">${escapeHtml(t)}<button type="button" data-remove-tag="${i}" aria-label="移除">✕</button></span>`
+      ).join('');
+      const known = getAllKnownCustomTags().filter(t => !tags.includes(t));
+      suggestEl.innerHTML = known.map(t =>
+        `<button type="button" class="tag-suggest-chip" data-pick-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>`
+      ).join('');
+    }
+    chipsEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-remove-tag]');
+      if (!btn) return;
+      tags.splice(parseInt(btn.getAttribute('data-remove-tag'), 10), 1);
+      render();
+    });
+    suggestEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-pick-tag]');
+      if (!btn) return;
+      const t = btn.getAttribute('data-pick-tag');
+      if (!tags.includes(t)) { tags.push(t); render(); }
+    });
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const v = inputEl.value.trim();
+      inputEl.value = '';
+      if (v && !tags.includes(v)) { tags.push(v); render(); }
+    });
+    return {
+      get: () => tags.slice(),
+      set: (arr) => { tags = Array.isArray(arr) ? [...arr] : []; render(); }
+    };
   }
 
   // ---- Google Identity Services setup ----
@@ -919,7 +1010,7 @@
         sent: props.sent === 'true',
         received: props.received === 'true',
         favorite: props.favorite === 'true',
-        customTag: props.customTag || '',
+        customTags: (props.customTag || '').split('|').map(s => s.trim()).filter(Boolean),
         coords: extra.coords || '',
         notes: extra.notes || ''
       };
@@ -943,7 +1034,7 @@
         app: APP_TAG, pcName: String(meta.name || '').slice(0, 100),
         location: meta.location, pikmin: meta.pikmin, floral: meta.floral,
         sent: String(!!meta.sent), received: String(!!meta.received), favorite: String(!!meta.favorite),
-        customTag: String(meta.customTag || '').slice(0, 100)
+        customTag: String(meta.customTag || '').slice(0, 300)
       },
       description: JSON.stringify({ coords: meta.coords, notes: meta.notes })
     });
@@ -989,7 +1080,7 @@
           app: APP_TAG, pcName: String(meta.name || '').slice(0, 100),
           location: meta.location, pikmin: meta.pikmin, floral: meta.floral,
           sent: String(!!meta.sent), received: String(!!meta.received), favorite: String(!!meta.favorite),
-          customTag: String(meta.customTag || '').slice(0, 100)
+          customTag: String(meta.customTag || '').slice(0, 300)
         },
         description: JSON.stringify({ coords: meta.coords, notes: meta.notes })
       })
@@ -1010,7 +1101,7 @@
     if (pc.floral) tags.push(`<span class="tag">${escapeHtml(pc.floral)}</span>`);
     if (pc.sent) tags.push(`<span class="tag">已寄出</span>`);
     if (pc.received) tags.push(`<span class="tag">已收到</span>`);
-    if (pc.customTag) tags.push(`<span class="tag">${escapeHtml(pc.customTag)}</span>`);
+    (pc.customTags || []).forEach(t => tags.push(`<span class="tag">${escapeHtml(t)}</span>`));
     return `
       <div class="pc-card" data-id="${escapeHtml(pc.id)}">
         <button class="fav-btn${pc.favorite ? ' active' : ''}" type="button" data-fav="${escapeHtml(pc.id)}" aria-label="切換我的最愛">⭐</button>
@@ -1107,7 +1198,7 @@
       (!fSent || p.sent) &&
       (!fReceived || p.received) &&
       (!fUncat || (!p.location && !p.pikmin && !p.floral)) &&
-      (!fCustom || p.customTag === fCustom)
+      (!fCustom || (p.customTags || []).includes(fCustom))
     );
   }
 
@@ -1115,7 +1206,7 @@
   // actually uses a custom tag — its option list is built from whatever
   // values are currently in use, and the whole control stays hidden otherwise.
   function refreshCustomTagFilterOptions() {
-    const tags = Array.from(new Set(allPostcardsCache.map(p => p.customTag).filter(Boolean))).sort();
+    const tags = getAllKnownCustomTags();
     if (tags.length === 0) {
       filterCustomTagWrap.style.display = 'none';
       filterCustomTag.innerHTML = '<option value="">全部</option>';
@@ -1191,7 +1282,7 @@
       await driveUpdatePostcardMeta(id, {
         name: pc.name, location: pc.location, pikmin: pc.pikmin, floral: pc.floral,
         sent: pc.sent, received: pc.received, favorite: nextFavorite,
-        customTag: pc.customTag, coords: pc.coords, notes: pc.notes
+        customTag: (pc.customTags || []).join('|'), coords: pc.coords, notes: pc.notes
       });
       pc.favorite = nextFavorite;
       renderRecentFromCache();
@@ -1219,15 +1310,7 @@
     editSentBtn.classList.toggle('active', !!pc.sent);
     editReceivedBtn.classList.toggle('active', !!pc.received);
     editFavoriteBtn.classList.toggle('active', !!pc.favorite);
-    if (pc.customTag) {
-      editCustomTagInput.value = pc.customTag;
-      editCustomTagFieldWrap.style.display = 'block';
-      editCustomTagBtn.style.display = 'none';
-    } else {
-      editCustomTagInput.value = '';
-      editCustomTagFieldWrap.style.display = 'none';
-      editCustomTagBtn.style.display = '';
-    }
+    editTagCtrl.set(pc.customTags || []);
     editCoordInput.value = pc.coords || '';
     editNotesInput.value = pc.notes || '';
     editPhotoPreview.src = '';
@@ -1280,7 +1363,8 @@
     const sent = editSentBtn.classList.contains('active');
     const received = editReceivedBtn.classList.contains('active');
     const favorite = editFavoriteBtn.classList.contains('active');
-    const customTag = editCustomTagInput.value.trim();
+    const customTags = editTagCtrl.get();
+    const customTag = customTags.join('|');
     const coords = editCoordInput.value.trim();
     const notes = editNotesInput.value.trim();
 
@@ -1291,7 +1375,7 @@
       await driveUpdatePostcardMeta(editingId, { name, location, pikmin, floral, sent, received, favorite, customTag, coords, notes });
       const idx = allPostcardsCache.findIndex(p => p.id === editingId);
       if (idx !== -1) {
-        allPostcardsCache[idx] = Object.assign({}, allPostcardsCache[idx], { name, location, pikmin, floral, sent, received, favorite, customTag, coords, notes });
+        allPostcardsCache[idx] = Object.assign({}, allPostcardsCache[idx], { name, location, pikmin, floral, sent, received, favorite, customTags, coords, notes });
       }
       renderRecentFromCache();
       renderAllGrid();
@@ -1547,24 +1631,11 @@
     btn.addEventListener('click', () => btn.classList.toggle('active'));
   });
 
-  customTagBtn.addEventListener('click', () => {
-    customTagBtn.style.display = 'none';
-    customTagFieldWrap.style.display = 'block';
-    customTagInput.focus();
-  });
-  editCustomTagBtn.addEventListener('click', () => {
-    editCustomTagBtn.style.display = 'none';
-    editCustomTagFieldWrap.style.display = 'block';
-    editCustomTagInput.focus();
-  });
-
   function openAddModal() {
     addForm.reset();
     resetPhotoField();
     [sentBtn, receivedBtn, favoriteBtn].forEach(btn => btn.classList.remove('active'));
-    customTagInput.value = '';
-    customTagFieldWrap.style.display = 'none';
-    customTagBtn.style.display = '';
+    addTagCtrl.set([]);
     uploadProgress.style.display = 'none';
     uploadProgressBar.style.width = '0%';
     formMsg.textContent = '';
@@ -1668,7 +1739,7 @@
     const sent = sentBtn.classList.contains('active');
     const received = receivedBtn.classList.contains('active');
     const favorite = favoriteBtn.classList.contains('active');
-    const customTag = customTagInput.value.trim();
+    const customTag = addTagCtrl.get().join('|');
     const coords = document.getElementById('coordInput').value.trim();
     const notes = document.getElementById('notesInput').value.trim();
 
