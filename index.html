@@ -981,9 +981,14 @@
   let homeShowFavorites = true;
 
   function homeEmptyHintHtml() {
+    // Brand-new account with zero postcards at all — give a direct button
+    // rather than just pointing at the floating action button elsewhere.
+    if (allPostcardsCache.length === 0) {
+      return `<div class="empty-hint">還沒有存過任何明信片。<br><button type="button" class="btn primary" id="emptyAddBtn" style="margin-top:12px;">＋ 存入明信片</button></div>`;
+    }
     return homeShowFavorites
       ? `<div class="empty-hint">還沒有標記任何「我的最愛」,點卡片左上角的星星加入最愛,或點上方星星切換看最近上傳。</div>`
-      : `<div class="empty-hint">還沒有存過任何明信片,點右下角「存入明信片」開始吧。</div>`;
+      : `<div class="empty-hint">目前沒有明信片。</div>`;
   }
 
   function getHomeGridItems() {
@@ -1361,6 +1366,9 @@
   }
 
   addBtn.addEventListener('click', openAddModal);
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#emptyAddBtn')) openAddModal();
+  });
   cancelAddBtn.addEventListener('click', closeAddModal);
   addModalBackdrop.addEventListener('click', (e) => {
     if (e.target === addModalBackdrop) closeAddModal();
