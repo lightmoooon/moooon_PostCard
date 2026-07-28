@@ -188,9 +188,16 @@
     .grid-all { grid-template-columns: repeat(3, 1fr); }
   }
   .grid-all {
-    max-height: 80vh;
+    /* mobile: 2 columns x 3 rows before scrolling */
+    max-height: 714px;
     overflow-y: auto;
     padding-right: 4px;
+  }
+  @media (min-width: 640px) {
+    .grid-all {
+      /* desktop: 3 columns x 3 rows before scrolling */
+      max-height: 1136px;
+    }
   }
   .pc-card {
     border: 1px solid var(--border);
