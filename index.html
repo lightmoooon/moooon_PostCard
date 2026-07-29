@@ -173,10 +173,12 @@
   }
   .accordion-header:hover { color: var(--accent-strong); }
   .accordion-body { padding: 10px 12px; background: var(--bg); }
-  .accordion-body select {
+  .accordion-body select, .accordion-body input[type=text] {
     width: 100%; padding: 8px 9px; border-radius: 9px; border: 1px solid var(--border);
     background: var(--bg); color: var(--text); font-size: 13.5px; font-family: inherit;
+    box-sizing: border-box;
   }
+  .accordion-body input[type=text] { margin-bottom: 8px; }
 
   .toggle-group { display: flex; gap: 8px; flex-wrap: wrap; }
   .toggle-btn {
@@ -528,6 +530,7 @@
         <div class="toggle-group">
           <button type="button" class="toggle-btn active" id="sortNewestBtn">最晚到最早</button>
           <button type="button" class="toggle-btn" id="sortOldestBtn">最早到最晚</button>
+          <button type="button" class="toggle-btn" id="filterUneditedBtn">未編輯</button>
         </div>
       </div>
 
@@ -569,20 +572,20 @@
             <button type="button" class="accordion-header" data-acc-target="accBodyCustomTag">自定義標籤</button>
             <div class="accordion-body" id="accBodyCustomTag" style="display:none">
               <div class="tag-chip-row" id="filterCustomTagChips"></div>
-              <div style="display:flex; gap:8px;">
-                <input type="text" id="filterCustomTagInput" placeholder="新增標籤分類" style="flex:1;">
-                <button type="button" class="btn secondary" id="filterCustomTagAddBtn" style="flex-shrink:0;">新增</button>
-              </div>
+              <select id="filterCustomTagSelect" style="margin-bottom:8px;">
+                <option value="">選擇已建立的標籤</option>
+              </select>
+              <input type="text" id="filterCustomTagInput" placeholder="新增標籤分類">
+              <button type="button" class="btn secondary" id="filterCustomTagAddBtn" style="margin-top:8px;">新增</button>
               <div class="tag-suggest-row" id="filterCustomTagSuggestions"></div>
             </div>
           </div>
           <div class="accordion-section">
-            <button type="button" class="accordion-header" data-acc-target="accBodyOther">其他</button>
+            <button type="button" class="accordion-header" data-acc-target="accBodyOther">寄送</button>
             <div class="accordion-body" id="accBodyOther" style="display:none">
               <div class="toggle-group">
                 <button type="button" class="toggle-btn" id="filterSentBtn">寄出</button>
                 <button type="button" class="toggle-btn" id="filterReceivedBtn">收到</button>
-                <button type="button" class="toggle-btn" id="filterUncategorizedBtn">未歸類</button>
               </div>
             </div>
           </div>
@@ -655,10 +658,8 @@
       <div class="field">
         <label for="customTagInput">自定義標籤</label>
         <div class="tag-chip-row" id="customTagChips"></div>
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="customTagInput" placeholder="輸入標籤" style="flex:1;">
-          <button type="button" class="btn secondary" id="customTagAddBtn" style="flex-shrink:0;">新增</button>
-        </div>
+        <input type="text" id="customTagInput" placeholder="輸入標籤">
+        <button type="button" class="btn secondary" id="customTagAddBtn" style="margin-top:8px;">新增</button>
         <div class="tag-suggest-row" id="customTagSuggestions"></div>
       </div>
       <div class="field">
@@ -721,10 +722,8 @@
       <div class="field">
         <label for="editCustomTagInput">自定義標籤</label>
         <div class="tag-chip-row" id="editCustomTagChips"></div>
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="editCustomTagInput" placeholder="輸入標籤" style="flex:1;">
-          <button type="button" class="btn secondary" id="editCustomTagAddBtn" style="flex-shrink:0;">新增</button>
-        </div>
+        <input type="text" id="editCustomTagInput" placeholder="輸入標籤">
+        <button type="button" class="btn secondary" id="editCustomTagAddBtn" style="margin-top:8px;">新增</button>
         <div class="tag-suggest-row" id="editCustomTagSuggestions"></div>
       </div>
       <div class="field">
@@ -791,13 +790,14 @@
   const filterSidebar = document.getElementById('filterSidebar');
   const sortNewestBtn = document.getElementById('sortNewestBtn');
   const sortOldestBtn = document.getElementById('sortOldestBtn');
+  const filterUneditedBtn = document.getElementById('filterUneditedBtn');
   const filterLocation = document.getElementById('filterLocation');
   const filterPikmin = document.getElementById('filterPikmin');
   const filterFloral = document.getElementById('filterFloral');
   const filterSentBtn = document.getElementById('filterSentBtn');
   const filterReceivedBtn = document.getElementById('filterReceivedBtn');
-  const filterUncategorizedBtn = document.getElementById('filterUncategorizedBtn');
   const filterCustomTagChips = document.getElementById('filterCustomTagChips');
+  const filterCustomTagSelect = document.getElementById('filterCustomTagSelect');
   const filterCustomTagInput = document.getElementById('filterCustomTagInput');
   const filterCustomTagAddBtn = document.getElementById('filterCustomTagAddBtn');
   const filterCustomTagSuggestions = document.getElementById('filterCustomTagSuggestions');
@@ -855,6 +855,14 @@
   const addTagCtrl = makeTagChipController(customTagChips, customTagInput, customTagSuggestions, customTagAddBtn);
   const editTagCtrl = makeTagChipController(editCustomTagChips, editCustomTagInput, editCustomTagSuggestions, editCustomTagAddBtn);
   const filterTagCtrl = makeTagChipController(filterCustomTagChips, filterCustomTagInput, filterCustomTagSuggestions, filterCustomTagAddBtn, () => renderAllGrid());
+  filterCustomTagSelect.addEventListener('change', () => {
+    const v = filterCustomTagSelect.value;
+    filterCustomTagSelect.value = '';
+    if (!v) return;
+    const current = filterTagCtrl.get();
+    if (!current.includes(v)) filterTagCtrl.set([...current, v]);
+    renderAllGrid();
+  });
 
   let accessToken = null;
   let currentUser = null;
@@ -1244,11 +1252,18 @@
     if (filterValue === UNCAT) return !value;
     return value === filterValue;
   }
+  // A postcard counts as "未編輯" when it's still exactly as bulk-upload
+  // left it — nothing filled in and no status toggled — which is broader
+  // than the old "未歸類" (location/pikmin/獲取方式 blank) check it replaces.
+  function isUnedited(p) {
+    return !p.location && !p.pikmin && !p.floral && !p.name && !p.coords && !p.notes &&
+      !(p.customTags && p.customTags.length) && !p.sent && !p.received && !p.favorite;
+  }
   function applyFilters(list) {
     const fLoc = filterLocation.value, fPik = filterPikmin.value, fFlo = filterFloral.value;
     const fSent = filterSentBtn.classList.contains('active');
     const fReceived = filterReceivedBtn.classList.contains('active');
-    const fUncat = filterUncategorizedBtn.classList.contains('active');
+    const fUnedited = filterUneditedBtn.classList.contains('active');
     const fCustomTags = filterTagCtrl.get();
     return list.filter(p =>
       (!onlyFavorites || p.favorite) &&
@@ -1257,7 +1272,7 @@
       matchField(p.floral, fFlo) &&
       (!fSent || p.sent) &&
       (!fReceived || p.received) &&
-      (!fUncat || (!p.location && !p.pikmin && !p.floral)) &&
+      (!fUnedited || isUnedited(p)) &&
       (!fCustomTags.length || fCustomTags.some(t => (p.customTags || []).includes(t)))
     );
   }
@@ -1274,8 +1289,17 @@
     });
   }
 
+  // Quick-pick dropdown alongside the chip UI — handy once there are enough
+  // known tags that scrolling through suggestion chips gets tedious.
+  function refreshCustomTagSelect() {
+    const known = getAllKnownCustomTags().filter(t => !filterTagCtrl.get().includes(t));
+    filterCustomTagSelect.innerHTML = '<option value="">選擇已建立的標籤</option>' +
+      known.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  }
+
   function renderAllGrid() {
     filterTagCtrl.refresh();
+    refreshCustomTagSelect();
     const list = sortPostcards(applyFilters(allPostcardsCache));
     if (list.length === 0) {
       allGrid.innerHTML = emptyGridHintHtml();
@@ -1301,6 +1325,10 @@
     sortDirection = 'asc';
     sortOldestBtn.classList.add('active');
     sortNewestBtn.classList.remove('active');
+    renderAllGrid();
+  });
+  filterUneditedBtn.addEventListener('click', () => {
+    filterUneditedBtn.classList.toggle('active');
     renderAllGrid();
   });
 
@@ -1409,7 +1437,7 @@
   }
 
   [filterLocation, filterPikmin, filterFloral].forEach(sel => sel.addEventListener('change', renderAllGrid));
-  [filterSentBtn, filterReceivedBtn, filterUncategorizedBtn].forEach(btn => {
+  [filterSentBtn, filterReceivedBtn].forEach(btn => {
     btn.addEventListener('click', () => { btn.classList.toggle('active'); renderAllGrid(); });
   });
 
