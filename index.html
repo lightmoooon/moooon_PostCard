@@ -621,6 +621,8 @@
             </select>
             <input type="text" id="filterCustomTagInput" placeholder="新增標籤分類">
             <button type="button" class="btn secondary" id="filterCustomTagAddBtn" style="margin-top:8px;">新增</button>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:10px;margin-bottom:4px;">已建立的標籤(點 ✕ 刪除)</div>
+            <div class="tag-chip-row" id="knownTagsManageList"></div>
           </div>
         </div>
         <div class="accordion-section">
@@ -848,6 +850,7 @@
   const filterCustomTagSelect = document.getElementById('filterCustomTagSelect');
   const filterCustomTagInput = document.getElementById('filterCustomTagInput');
   const filterCustomTagAddBtn = document.getElementById('filterCustomTagAddBtn');
+  const knownTagsManageList = document.getElementById('knownTagsManageList');
 
   const addModalBackdrop = document.getElementById('addModalBackdrop');
   const addForm = document.getElementById('addForm');
@@ -1039,9 +1042,7 @@
         const data = await res.json().catch(() => null);
         if (data && data.id) configFileId = data.id;
       }
-      refreshTagSelect(filterCustomTagSelect, filterTagCtrl);
-      refreshTagSelect(customTagSelect, addTagCtrl);
-      refreshTagSelect(editCustomTagSelect, editTagCtrl);
+      refreshAllCustomTagUI();
     } catch (e) { /* best-effort sync — the tag still works locally this session either way */ }
   }
 
@@ -1080,9 +1081,7 @@
     if (!declaredTagsCache.includes(tag)) {
       declaredTagsCache.push(tag);
       driveSaveConfig(); // fire-and-forget so the UI doesn't wait on this
-      refreshTagSelect(filterCustomTagSelect, filterTagCtrl);
-      refreshTagSelect(customTagSelect, addTagCtrl);
-      refreshTagSelect(editCustomTagSelect, editTagCtrl);
+      refreshAllCustomTagUI();
     }
   }
   function getAllKnownCustomTags() {
@@ -1288,9 +1287,7 @@
     await reconcileDeclaredTags();
     await migrateLegacyLocalDeclaredTags();
     filterTagCtrl.refresh();
-    refreshTagSelect(filterCustomTagSelect, filterTagCtrl);
-    refreshTagSelect(customTagSelect, addTagCtrl);
-    refreshTagSelect(editCustomTagSelect, editTagCtrl);
+    refreshAllCustomTagUI();
     restoreEditDraftIfAny();
   }
 
@@ -1542,6 +1539,51 @@
     selectEl.innerHTML = '<option value="">選擇已建立的標籤</option>' +
       known.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
   }
+  // Full management list of every known tag (sidebar only) — each shown as a
+  // chip with its own ✕ so a tag can be deleted outright, distinct from the
+  // dropdowns above which only ever add a tag to whatever's currently open.
+  function renderKnownTagsManageList() {
+    const known = getAllKnownCustomTags();
+    knownTagsManageList.innerHTML = known.map(t =>
+      `<span class="tag-chip">${escapeHtml(t)}<button type="button" data-delete-known-tag="${escapeHtml(t)}" aria-label="刪除標籤">✕</button></span>`
+    ).join('');
+  }
+  function refreshAllCustomTagUI() {
+    refreshTagSelect(filterCustomTagSelect, filterTagCtrl);
+    refreshTagSelect(customTagSelect, addTagCtrl);
+    refreshTagSelect(editCustomTagSelect, editTagCtrl);
+    renderKnownTagsManageList();
+  }
+  // Deleting a tag removes it from the declared list AND strips it from
+  // every postcard currently using it — otherwise it would just reappear in
+  // getAllKnownCustomTags() (which also draws from postcards' own tags) the
+  // next time anything refreshed.
+  async function deleteDeclaredTag(tag) {
+    if (!confirm(`確定要刪除標籤「${tag}」嗎?這會從所有明信片與已建立列表中移除此標籤。`)) return;
+    declaredTagsCache = declaredTagsCache.filter(t => t !== tag);
+    await driveSaveConfig();
+    const affected = allPostcardsCache.filter(p => (p.customTags || []).includes(tag));
+    for (const pc of affected) {
+      const newTags = pc.customTags.filter(t => t !== tag);
+      try {
+        await driveUpdatePostcardMeta(pc.id, {
+          name: pc.name, location: pc.location, pikmin: pc.pikmin, floral: pc.floral,
+          sent: pc.sent, received: pc.received, favorite: pc.favorite,
+          customTag: newTags.join('|'), coords: pc.coords, notes: pc.notes
+        });
+        pc.customTags = newTags;
+      } catch (e) { /* leave this one be — it'll get cleaned up on a future edit/reconcile */ }
+    }
+    filterTagCtrl.set(filterTagCtrl.get().filter(t => t !== tag));
+    addTagCtrl.set(addTagCtrl.get().filter(t => t !== tag));
+    editTagCtrl.set(editTagCtrl.get().filter(t => t !== tag));
+    renderAllGrid();
+  }
+  knownTagsManageList.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-delete-known-tag]');
+    if (!btn) return;
+    deleteDeclaredTag(btn.getAttribute('data-delete-known-tag'));
+  });
   function wireTagSelect(selectEl, ctrl, afterPick) {
     selectEl.addEventListener('change', () => {
       const v = selectEl.value;
@@ -1556,7 +1598,7 @@
 
   function renderAllGrid() {
     filterTagCtrl.refresh();
-    refreshTagSelect(filterCustomTagSelect, filterTagCtrl);
+    refreshAllCustomTagUI();
     const list = sortPostcards(applyFilters(allPostcardsCache));
     if (list.length === 0) {
       allGrid.innerHTML = emptyGridHintHtml();
