@@ -951,20 +951,83 @@
   // Every custom tag ever typed (across all postcards) becomes a reusable
   // suggestion — once you've created one, you can just click it next time
   // instead of retyping it. Tags declared straight from the sidebar filter
-  // (before any postcard actually uses them yet) are kept in localStorage so
-  // they still show up as selectable options.
-  const DECLARED_TAGS_KEY = 'pikminPostcardsDeclaredTags';
+  // (before any postcard actually uses them yet) used to live in
+  // localStorage, but that's per-browser/per-device — a tag declared on
+  // your phone would never show up on the desktop site. They're now kept in
+  // a small config file in the same Google Drive the postcards live in, so
+  // logging in on any device sees the same list.
+  const LEGACY_DECLARED_TAGS_KEY = 'pikminPostcardsDeclaredTags';
+  let configFileId = null;
+  let declaredTagsCache = [];
+
+  async function driveLoadConfig() {
+    try {
+      const q = `appProperties has { key='app' and value='${APP_TAG}' } and appProperties has { key='configType' and value='appConfig' } and trashed=false`;
+      const url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id)&pageSize=1`;
+      const res = await fetch(url, { headers: driveHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const file = (data.files || [])[0];
+      if (!file) { configFileId = null; declaredTagsCache = []; return; }
+      configFileId = file.id;
+      const contentRes = await fetch(`${DRIVE_API}/files/${configFileId}?alt=media`, { headers: driveHeaders() });
+      if (!contentRes.ok) return;
+      const config = await contentRes.json().catch(() => ({}));
+      declaredTagsCache = Array.isArray(config.declaredTags) ? config.declaredTags : [];
+    } catch (e) { /* config load failed — known tags still work via postcards already in use */ }
+  }
+
+  async function driveSaveConfig() {
+    const body = JSON.stringify({ declaredTags: declaredTagsCache });
+    try {
+      if (configFileId) {
+        await fetch(`${DRIVE_UPLOAD_API}/files/${configFileId}?uploadType=media`, {
+          method: 'PATCH',
+          headers: driveHeaders({ 'Content-Type': 'application/json' }),
+          body
+        });
+      } else {
+        const boundary = 'pikmin_boundary_' + Date.now();
+        const metadataPart = JSON.stringify({
+          name: 'pikmin_postcards_config.json',
+          appProperties: { app: APP_TAG, configType: 'appConfig' }
+        });
+        const multipartBody =
+          `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadataPart}\r\n` +
+          `--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n` +
+          `--${boundary}--`;
+        const res = await fetch(`${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id`, {
+          method: 'POST',
+          headers: driveHeaders({ 'Content-Type': `multipart/related; boundary=${boundary}` }),
+          body: multipartBody
+        });
+        const data = await res.json().catch(() => null);
+        if (data && data.id) configFileId = data.id;
+      }
+    } catch (e) { /* best-effort sync — the tag still works locally this session either way */ }
+  }
+
+  // One-time cleanup for anyone who declared tags before this was synced —
+  // folds whatever was stuck in this device's localStorage into the shared
+  // Drive config, then stops using localStorage for this going forward.
+  async function migrateLegacyLocalDeclaredTags() {
+    let legacy = [];
+    try { legacy = JSON.parse(localStorage.getItem(LEGACY_DECLARED_TAGS_KEY) || '[]'); } catch (e) { /* ignore */ }
+    if (legacy.length === 0) return;
+    let changed = false;
+    legacy.forEach(t => { if (!declaredTagsCache.includes(t)) { declaredTagsCache.push(t); changed = true; } });
+    if (changed) await driveSaveConfig();
+    try { localStorage.removeItem(LEGACY_DECLARED_TAGS_KEY); } catch (e) { /* ignore */ }
+  }
+
   function getDeclaredCustomTags() {
-    try { return JSON.parse(localStorage.getItem(DECLARED_TAGS_KEY) || '[]'); } catch (e) { return []; }
+    return declaredTagsCache;
   }
   function declareCustomTag(tag) {
-    try {
-      const existing = getDeclaredCustomTags();
-      if (!existing.includes(tag)) {
-        existing.push(tag);
-        localStorage.setItem(DECLARED_TAGS_KEY, JSON.stringify(existing));
-      }
-    } catch (e) { /* localStorage unavailable — the tag still works, just won't be pre-declared */ }
+    if (!declaredTagsCache.includes(tag)) {
+      declaredTagsCache.push(tag);
+      driveSaveConfig(); // fire-and-forget so the UI doesn't wait on this
+    }
   }
   function getAllKnownCustomTags() {
     return Array.from(new Set([
@@ -1158,6 +1221,10 @@
     userAvatar.src = profile.picture || '';
     userName.textContent = profile.name || profile.email || '';
     await loadPostcards();
+    await driveLoadConfig();
+    await migrateLegacyLocalDeclaredTags();
+    filterTagCtrl.refresh();
+    refreshCustomTagSelect();
     restoreEditDraftIfAny();
   }
 
