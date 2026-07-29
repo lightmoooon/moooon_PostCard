@@ -1019,6 +1019,21 @@
     try { localStorage.removeItem(LEGACY_DECLARED_TAGS_KEY); } catch (e) { /* ignore */ }
   }
 
+  // Every login reconciles this device's view of custom tags against the
+  // shared Drive config, rather than trusting the config blindly: tags this
+  // device actually has in use (on its postcards, already loaded by this
+  // point) that the config doesn't know about yet — e.g. from a previous
+  // save that raced with another device's — get folded in and written back.
+  // A device with fewer tags than the config just ends up adopting the
+  // union, since the union is never smaller than either side.
+  async function reconcileDeclaredTags() {
+    const inUse = Array.from(new Set(allPostcardsCache.flatMap(p => p.customTags || [])));
+    const merged = Array.from(new Set([...declaredTagsCache, ...inUse])).sort();
+    const hasNew = merged.some(t => !declaredTagsCache.includes(t));
+    declaredTagsCache = merged;
+    if (hasNew) await driveSaveConfig();
+  }
+
   function getDeclaredCustomTags() {
     return declaredTagsCache;
   }
@@ -1224,6 +1239,7 @@
     userName.textContent = profile.name || profile.email || '';
     await loadPostcards();
     await driveLoadConfig();
+    await reconcileDeclaredTags();
     await migrateLegacyLocalDeclaredTags();
     filterTagCtrl.refresh();
     refreshTagSelect(filterCustomTagSelect, filterTagCtrl);
