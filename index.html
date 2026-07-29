@@ -329,8 +329,12 @@
     font-size: 12px;
     line-height: 1.5;
   }
-  .pc-card .meta .loc { font-weight: 700; }
-  .pc-card .meta .coord { color: var(--text-muted); font-variant-numeric: tabular-nums; word-break: break-all; }
+  .pc-card .meta .loc { font-weight: 700; font-size: 18px; }
+  .pc-card .meta .coord {
+    color: var(--text-muted); font-variant-numeric: tabular-nums; word-break: break-all;
+    font-size: 18px; cursor: pointer;
+  }
+  .pc-card .meta .coord:hover { text-decoration: underline; color: var(--accent-strong); }
   .pc-card .meta .note { color: var(--text-muted); margin-top: 3px; }
   .pc-card .meta .tags { margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
   .pc-card .tag {
@@ -1302,7 +1306,7 @@
         <img class="thumb" data-photo-for="${escapeHtml(pc.id)}" alt="明信片" src="">
         <div class="meta">
           <div class="loc">${escapeHtml(pc.name || '')}</div>
-          <div class="coord">${escapeHtml(pc.coords || '未填座標')}</div>
+          <div class="coord" data-coord="${escapeHtml(pc.coords || '')}">${escapeHtml(pc.coords || '未填座標')}</div>
           <div class="tags">${tags.join('')}</div>
           ${pc.notes ? `<div class="note">${escapeHtml(pc.notes)}</div>` : ''}
         </div>
@@ -1558,6 +1562,24 @@
     }
   });
 
+  // Clicking a card's coordinates copies them to the clipboard instead of
+  // opening the edit modal (handled by the exclusion in that listener above).
+  document.addEventListener('click', async (e) => {
+    const coordEl = e.target.closest('.pc-card .coord');
+    if (!coordEl) return;
+    const text = coordEl.getAttribute('data-coord');
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = coordEl.textContent;
+      coordEl.textContent = '已複製!';
+      setTimeout(() => { coordEl.textContent = original; }, 1000);
+    } catch (err) {
+      // Clipboard API can be unavailable (no HTTPS/permission) — fail quietly
+      // rather than interrupting the user with an error for a copy shortcut.
+    }
+  });
+
   // Star badge on each card toggles that postcard's favorite status directly,
   // without needing to go through the edit modal.
   document.addEventListener('click', async (e) => {
@@ -1618,6 +1640,7 @@
   document.addEventListener('click', (e) => {
     if (e.target.closest('button[data-del]')) return;
     if (e.target.closest('button[data-fav]')) return;
+    if (e.target.closest('.pc-card .coord')) return;
     const card = e.target.closest('.pc-card');
     if (!card) return;
     openEditModal(card.getAttribute('data-id'));
