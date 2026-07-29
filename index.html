@@ -165,7 +165,7 @@
        instead of sitting beside it. Tapping ☰ again closes it. */
     #filterSidebarCard {
       position: fixed;
-      top: 0;
+      top: var(--top-controls-h, 56px);
       left: 0;
       bottom: 0;
       z-index: 24;
@@ -832,6 +832,7 @@
 
   const allGrid = document.getElementById('allGrid');
   const allSection = document.getElementById('allSection');
+  const topControls = document.querySelector('.top-controls');
   const favToggleBtn = document.getElementById('favToggleBtn');
   const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
   const filterSidebar = document.getElementById('filterSidebar');
@@ -1586,8 +1587,31 @@
     renderAllGrid();
   });
 
+  // The mobile sidebar overlay is anchored below wherever the top-controls
+  // bar (☰/⭐/近期上傳/未編輯) currently renders, rather than at the very top
+  // of the viewport — otherwise that bar, being higher z-index so it stays
+  // clickable, would sit on top of and hide the sidebar's own top edge.
+  // Before the page scrolls, the bar sits below the header in normal flow;
+  // once scrolled past the header it becomes pinned (position: sticky) at
+  // the very top instead — so its rendered bottom edge is tracked live via
+  // scroll/resize rather than measured once.
+  let topControlsSyncQueued = false;
+  function syncTopControlsHeight() {
+    if (topControlsSyncQueued) return;
+    topControlsSyncQueued = true;
+    requestAnimationFrame(() => {
+      topControlsSyncQueued = false;
+      const bottom = Math.max(0, topControls.getBoundingClientRect().bottom);
+      document.documentElement.style.setProperty('--top-controls-h', bottom + 'px');
+    });
+  }
+  syncTopControlsHeight();
+  window.addEventListener('resize', syncTopControlsHeight);
+  window.addEventListener('scroll', syncTopControlsHeight, { passive: true });
+
   sidebarToggleBtn.addEventListener('click', () => {
     filterSidebarCard.style.display = filterSidebarCard.style.display === 'none' ? '' : 'none';
+    syncTopControlsHeight();
   });
   filterSidebar.addEventListener('click', (e) => {
     const header = e.target.closest('.accordion-header');
