@@ -135,6 +135,11 @@
     gap: 10px;
     flex-wrap: wrap;
     margin-bottom: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 26;
+    background: var(--bg);
+    padding-top: 4px;
   }
   .icon-btn {
     font-size: 18px;
@@ -153,6 +158,18 @@
   }
   @media (max-width: 639px) {
     .content-row { flex-direction: column; }
+    /* On phones the category list opens as a full-screen overlay directly
+       on top of the postcard grid (instead of pushing it down the page) —
+       tapping ☰ again closes it and reveals the grid underneath again. */
+    #filterSidebarCard {
+      position: fixed;
+      inset: 0;
+      z-index: 24;
+      width: 100%;
+      margin: 0;
+      border-radius: 0;
+      overflow-y: auto;
+    }
   }
   #filterSidebarCard { flex: 0 0 auto; width: 100%; }
   @media (min-width: 640px) {
@@ -872,9 +889,9 @@
   const addTagCtrl = makeTagChipController(customTagChips, customTagInput, customTagSuggestions, customTagAddBtn);
   const editTagCtrl = makeTagChipController(editCustomTagChips, editCustomTagInput, editCustomTagSuggestions, editCustomTagAddBtn);
   const filterTagCtrl = makeTagChipController(filterCustomTagChips, filterCustomTagInput, null, filterCustomTagAddBtn, () => renderAllGrid());
-  const locationCtrl = makeSingleSelectButtonGroup(locationOptionList, () => renderAllGrid());
-  const pikminCtrl = makeSingleSelectButtonGroup(pikminOptionList, () => renderAllGrid());
-  const floralCtrl = makeSingleSelectButtonGroup(floralOptionList, () => renderAllGrid());
+  const locationCtrl = makeMultiSelectButtonGroup(locationOptionList, () => renderAllGrid());
+  const pikminCtrl = makeMultiSelectButtonGroup(pikminOptionList, () => renderAllGrid());
+  const floralCtrl = makeMultiSelectButtonGroup(floralOptionList, () => renderAllGrid());
   filterCustomTagSelect.addEventListener('change', () => {
     const v = filterCustomTagSelect.value;
     filterCustomTagSelect.value = '';
@@ -978,24 +995,33 @@
   // Radio-style button group for a single-value filter (地點/皮克敏/獲取方式) —
   // clicking an option selects it exclusively within the group; clicking the
   // already-active option clears back to "全部".
-  function makeSingleSelectButtonGroup(containerEl, onChange) {
-    let value = '';
+  // "全部" (value="") acts as a reset for the category — picking it clears
+  // every other selection, and picking any real value cancels "全部". Aside
+  // from that, any number of the remaining options can be active together
+  // (OR'd when filtering).
+  function makeMultiSelectButtonGroup(containerEl, onChange) {
+    const selected = new Set();
     function apply() {
       [...containerEl.querySelectorAll('[data-value]')].forEach(b => {
-        b.classList.toggle('active', b.getAttribute('data-value') === value);
+        b.classList.toggle('active', selected.has(b.getAttribute('data-value')));
       });
     }
     containerEl.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-value]');
       if (!btn) return;
       const v = btn.getAttribute('data-value');
-      value = (value === v) ? '' : v;
+      if (v === '') {
+        selected.clear();
+      } else {
+        selected.delete('');
+        if (selected.has(v)) selected.delete(v); else selected.add(v);
+      }
       apply();
       onChange();
     });
     return {
-      get: () => value,
-      set: (v) => { value = v || ''; apply(); }
+      get: () => [...selected],
+      set: (arr) => { selected.clear(); (arr || []).forEach(v => selected.add(v)); apply(); }
     };
   }
 
@@ -1295,10 +1321,11 @@
   }
 
   const UNCAT = '__uncat__';
-  function matchField(value, filterValue) {
-    if (!filterValue) return true;
-    if (filterValue === UNCAT) return !value;
-    return value === filterValue;
+  // Each category can now have multiple options selected at once (OR within
+  // the category) — an empty selection means "no filter" for that category.
+  function matchField(value, selectedValues) {
+    if (!selectedValues || selectedValues.length === 0) return true;
+    return selectedValues.some(v => v === UNCAT ? !value : value === v);
   }
   // A postcard counts as "未編輯" when it's still exactly as bulk-upload
   // left it — nothing filled in and no status toggled — which is broader
