@@ -136,22 +136,16 @@
     flex-wrap: wrap;
     margin-bottom: 14px;
   }
-  .all-body {
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
+  .icon-btn {
+    font-size: 18px;
+    line-height: 1;
+    padding: 8px 12px;
   }
-  @media (max-width: 639px) {
-    .all-body { flex-direction: column; }
+  .toggle-group.vertical {
+    flex-direction: column;
+    align-items: stretch;
   }
-  .filter-sidebar {
-    flex: 0 0 auto;
-    width: 100%;
-  }
-  @media (min-width: 640px) {
-    .filter-sidebar { width: 220px; }
-  }
-  .all-grid-wrap { flex: 1; min-width: 0; }
+  .toggle-group.vertical .toggle-btn { text-align: left; }
   .accordion-section {
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -523,78 +517,89 @@
       </div>
     </header>
 
+    <div class="top-controls">
+      <button type="button" class="btn secondary icon-btn" id="sidebarToggleBtn" aria-label="分類篩選">☰</button>
+      <button type="button" class="star-toggle" id="favToggleBtn" aria-label="只顯示珍藏">⭐</button>
+      <div class="toggle-group">
+        <button type="button" class="toggle-btn active" id="sortNewestBtn">最晚到最早</button>
+        <button type="button" class="toggle-btn" id="sortOldestBtn">最早到最晚</button>
+        <button type="button" class="toggle-btn" id="filterUneditedBtn">未編輯</button>
+      </div>
+    </div>
+
+    <div class="card" id="filterSidebarCard" style="display:none">
+      <aside class="filter-sidebar" id="filterSidebar">
+        <div class="accordion-section">
+          <button type="button" class="accordion-header" data-acc-target="accBodyLocation">地點</button>
+          <div class="accordion-body" id="accBodyLocation" style="display:none">
+            <div class="toggle-group vertical" id="locationOptionList">
+              <button type="button" class="toggle-btn" data-value="">全部地點</button>
+              <button type="button" class="toggle-btn" data-value="__uncat__">未歸類</button>
+              <button type="button" class="toggle-btn" data-value="台灣">台灣</button>
+              <button type="button" class="toggle-btn" data-value="亞洲">亞洲</button>
+              <button type="button" class="toggle-btn" data-value="歐洲">歐洲</button>
+              <button type="button" class="toggle-btn" data-value="非洲">非洲</button>
+              <button type="button" class="toggle-btn" data-value="大洋洲">大洋洲</button>
+              <button type="button" class="toggle-btn" data-value="北美洲">北美洲</button>
+              <button type="button" class="toggle-btn" data-value="南美洲">南美洲</button>
+              <button type="button" class="toggle-btn" data-value="南極洲">南極洲</button>
+            </div>
+          </div>
+        </div>
+        <div class="accordion-section">
+          <button type="button" class="accordion-header" data-acc-target="accBodyPikmin">皮克敏</button>
+          <div class="accordion-body" id="accBodyPikmin" style="display:none">
+            <div class="toggle-group vertical" id="pikminOptionList">
+              <button type="button" class="toggle-btn" data-value="">全部</button>
+              <button type="button" class="toggle-btn" data-value="__uncat__">未歸類</button>
+              <button type="button" class="toggle-btn" data-value="大頭照">大頭照</button>
+              <button type="button" class="toggle-btn" data-value="1皮">1皮</button>
+              <button type="button" class="toggle-btn" data-value="2皮">2皮</button>
+              <button type="button" class="toggle-btn" data-value="3皮">3皮</button>
+              <button type="button" class="toggle-btn" data-value="4皮">4皮</button>
+              <button type="button" class="toggle-btn" data-value="5皮">5皮</button>
+              <button type="button" class="toggle-btn" data-value="倒吊">倒吊</button>
+            </div>
+          </div>
+        </div>
+        <div class="accordion-section">
+          <button type="button" class="accordion-header" data-acc-target="accBodyFloral">獲取方式</button>
+          <div class="accordion-body" id="accBodyFloral" style="display:none">
+            <div class="toggle-group vertical" id="floralOptionList">
+              <button type="button" class="toggle-btn" data-value="">全部</button>
+              <button type="button" class="toggle-btn" data-value="__uncat__">未歸類</button>
+              <button type="button" class="toggle-btn" data-value="花點">花點</button>
+              <button type="button" class="toggle-btn" data-value="菇點">菇點</button>
+              <button type="button" class="toggle-btn" data-value="探險">探險</button>
+              <button type="button" class="toggle-btn" data-value="隱藏">隱藏</button>
+            </div>
+          </div>
+        </div>
+        <div class="accordion-section">
+          <button type="button" class="accordion-header" data-acc-target="accBodyCustomTag">自定義標籤</button>
+          <div class="accordion-body" id="accBodyCustomTag" style="display:none">
+            <div class="tag-chip-row" id="filterCustomTagChips"></div>
+            <select id="filterCustomTagSelect" style="margin-bottom:8px;">
+              <option value="">選擇已建立的標籤</option>
+            </select>
+            <input type="text" id="filterCustomTagInput" placeholder="新增標籤分類">
+            <button type="button" class="btn secondary" id="filterCustomTagAddBtn" style="margin-top:8px;">新增</button>
+          </div>
+        </div>
+        <div class="accordion-section">
+          <button type="button" class="accordion-header" data-acc-target="accBodyOther">寄送</button>
+          <div class="accordion-body" id="accBodyOther" style="display:none">
+            <div class="toggle-group vertical">
+              <button type="button" class="toggle-btn" id="filterSentBtn">寄出</button>
+              <button type="button" class="toggle-btn" id="filterReceivedBtn">收到</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
     <div class="card" id="allSection">
-      <div class="top-controls">
-        <button type="button" class="star-toggle" id="favToggleBtn" aria-label="只顯示珍藏">⭐</button>
-        <button type="button" class="btn secondary" id="sidebarToggleBtn">分類篩選</button>
-        <div class="toggle-group">
-          <button type="button" class="toggle-btn active" id="sortNewestBtn">最晚到最早</button>
-          <button type="button" class="toggle-btn" id="sortOldestBtn">最早到最晚</button>
-          <button type="button" class="toggle-btn" id="filterUneditedBtn">未編輯</button>
-        </div>
-      </div>
-
-      <div class="all-body">
-        <aside class="filter-sidebar" id="filterSidebar" style="display:none">
-          <div class="accordion-section">
-            <button type="button" class="accordion-header" data-acc-target="accBodyLocation">地點</button>
-            <div class="accordion-body" id="accBodyLocation" style="display:none">
-              <select id="filterLocation">
-                <option value="">全部地點</option>
-                <option value="__uncat__">未歸類</option>
-                <option>台灣</option><option>亞洲</option><option>歐洲</option><option>非洲</option>
-                <option>大洋洲</option><option>北美洲</option><option>南美洲</option><option>南極洲</option>
-              </select>
-            </div>
-          </div>
-          <div class="accordion-section">
-            <button type="button" class="accordion-header" data-acc-target="accBodyPikmin">皮克敏</button>
-            <div class="accordion-body" id="accBodyPikmin" style="display:none">
-              <select id="filterPikmin">
-                <option value="">全部</option>
-                <option value="__uncat__">未歸類</option>
-                <option>大頭照</option><option>1皮</option><option>2皮</option>
-                <option>3皮</option><option>4皮</option><option>5皮</option><option>倒吊</option>
-              </select>
-            </div>
-          </div>
-          <div class="accordion-section">
-            <button type="button" class="accordion-header" data-acc-target="accBodyFloral">獲取方式</button>
-            <div class="accordion-body" id="accBodyFloral" style="display:none">
-              <select id="filterFloral">
-                <option value="">全部</option>
-                <option value="__uncat__">未歸類</option>
-                <option>花點</option><option>菇點</option><option>探險</option><option>隱藏</option>
-              </select>
-            </div>
-          </div>
-          <div class="accordion-section">
-            <button type="button" class="accordion-header" data-acc-target="accBodyCustomTag">自定義標籤</button>
-            <div class="accordion-body" id="accBodyCustomTag" style="display:none">
-              <div class="tag-chip-row" id="filterCustomTagChips"></div>
-              <select id="filterCustomTagSelect" style="margin-bottom:8px;">
-                <option value="">選擇已建立的標籤</option>
-              </select>
-              <input type="text" id="filterCustomTagInput" placeholder="新增標籤分類">
-              <button type="button" class="btn secondary" id="filterCustomTagAddBtn" style="margin-top:8px;">新增</button>
-              <div class="tag-suggest-row" id="filterCustomTagSuggestions"></div>
-            </div>
-          </div>
-          <div class="accordion-section">
-            <button type="button" class="accordion-header" data-acc-target="accBodyOther">寄送</button>
-            <div class="accordion-body" id="accBodyOther" style="display:none">
-              <div class="toggle-group">
-                <button type="button" class="toggle-btn" id="filterSentBtn">寄出</button>
-                <button type="button" class="toggle-btn" id="filterReceivedBtn">收到</button>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <div class="all-grid-wrap">
-          <div class="grid grid-all" id="allGrid"></div>
-        </div>
-      </div>
+      <div class="grid grid-all" id="allGrid"></div>
     </div>
   </div>
 
@@ -788,19 +793,19 @@
   const favToggleBtn = document.getElementById('favToggleBtn');
   const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
   const filterSidebar = document.getElementById('filterSidebar');
+  const filterSidebarCard = document.getElementById('filterSidebarCard');
   const sortNewestBtn = document.getElementById('sortNewestBtn');
   const sortOldestBtn = document.getElementById('sortOldestBtn');
   const filterUneditedBtn = document.getElementById('filterUneditedBtn');
-  const filterLocation = document.getElementById('filterLocation');
-  const filterPikmin = document.getElementById('filterPikmin');
-  const filterFloral = document.getElementById('filterFloral');
+  const locationOptionList = document.getElementById('locationOptionList');
+  const pikminOptionList = document.getElementById('pikminOptionList');
+  const floralOptionList = document.getElementById('floralOptionList');
   const filterSentBtn = document.getElementById('filterSentBtn');
   const filterReceivedBtn = document.getElementById('filterReceivedBtn');
   const filterCustomTagChips = document.getElementById('filterCustomTagChips');
   const filterCustomTagSelect = document.getElementById('filterCustomTagSelect');
   const filterCustomTagInput = document.getElementById('filterCustomTagInput');
   const filterCustomTagAddBtn = document.getElementById('filterCustomTagAddBtn');
-  const filterCustomTagSuggestions = document.getElementById('filterCustomTagSuggestions');
 
   const addModalBackdrop = document.getElementById('addModalBackdrop');
   const addForm = document.getElementById('addForm');
@@ -854,7 +859,10 @@
 
   const addTagCtrl = makeTagChipController(customTagChips, customTagInput, customTagSuggestions, customTagAddBtn);
   const editTagCtrl = makeTagChipController(editCustomTagChips, editCustomTagInput, editCustomTagSuggestions, editCustomTagAddBtn);
-  const filterTagCtrl = makeTagChipController(filterCustomTagChips, filterCustomTagInput, filterCustomTagSuggestions, filterCustomTagAddBtn, () => renderAllGrid());
+  const filterTagCtrl = makeTagChipController(filterCustomTagChips, filterCustomTagInput, null, filterCustomTagAddBtn, () => renderAllGrid());
+  const locationCtrl = makeSingleSelectButtonGroup(locationOptionList, () => renderAllGrid());
+  const pikminCtrl = makeSingleSelectButtonGroup(pikminOptionList, () => renderAllGrid());
+  const floralCtrl = makeSingleSelectButtonGroup(floralOptionList, () => renderAllGrid());
   filterCustomTagSelect.addEventListener('change', () => {
     const v = filterCustomTagSelect.value;
     filterCustomTagSelect.value = '';
@@ -912,10 +920,12 @@
       chipsEl.innerHTML = tags.map((t, i) =>
         `<span class="tag-chip">${escapeHtml(t)}<button type="button" data-remove-tag="${i}" aria-label="移除">✕</button></span>`
       ).join('');
-      const known = getAllKnownCustomTags().filter(t => !tags.includes(t));
-      suggestEl.innerHTML = known.map(t =>
-        `<button type="button" class="tag-suggest-chip" data-pick-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>`
-      ).join('');
+      if (suggestEl) {
+        const known = getAllKnownCustomTags().filter(t => !tags.includes(t));
+        suggestEl.innerHTML = known.map(t =>
+          `<button type="button" class="tag-suggest-chip" data-pick-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>`
+        ).join('');
+      }
     }
     function addFromInput() {
       const v = inputEl.value.trim();
@@ -929,12 +939,14 @@
       render();
       if (onChange) onChange();
     });
-    suggestEl.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-pick-tag]');
-      if (!btn) return;
-      const t = btn.getAttribute('data-pick-tag');
-      if (!tags.includes(t)) { tags.push(t); render(); if (onChange) onChange(); }
-    });
+    if (suggestEl) {
+      suggestEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-pick-tag]');
+        if (!btn) return;
+        const t = btn.getAttribute('data-pick-tag');
+        if (!tags.includes(t)) { tags.push(t); render(); if (onChange) onChange(); }
+      });
+    }
     inputEl.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
@@ -948,6 +960,30 @@
       get: () => tags.slice(),
       set: (arr) => { tags = Array.isArray(arr) ? [...arr] : []; render(); },
       refresh: render
+    };
+  }
+
+  // Radio-style button group for a single-value filter (地點/皮克敏/獲取方式) —
+  // clicking an option selects it exclusively within the group; clicking the
+  // already-active option clears back to "全部".
+  function makeSingleSelectButtonGroup(containerEl, onChange) {
+    let value = '';
+    function apply() {
+      [...containerEl.querySelectorAll('[data-value]')].forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-value') === value);
+      });
+    }
+    containerEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-value]');
+      if (!btn) return;
+      const v = btn.getAttribute('data-value');
+      value = (value === v) ? '' : v;
+      apply();
+      onChange();
+    });
+    return {
+      get: () => value,
+      set: (v) => { value = v || ''; apply(); }
     };
   }
 
@@ -1260,7 +1296,7 @@
       !(p.customTags && p.customTags.length) && !p.sent && !p.received && !p.favorite;
   }
   function applyFilters(list) {
-    const fLoc = filterLocation.value, fPik = filterPikmin.value, fFlo = filterFloral.value;
+    const fLoc = locationCtrl.get(), fPik = pikminCtrl.get(), fFlo = floralCtrl.get();
     const fSent = filterSentBtn.classList.contains('active');
     const fReceived = filterReceivedBtn.classList.contains('active');
     const fUnedited = filterUneditedBtn.classList.contains('active');
@@ -1333,7 +1369,7 @@
   });
 
   sidebarToggleBtn.addEventListener('click', () => {
-    filterSidebar.style.display = filterSidebar.style.display === 'none' ? '' : 'none';
+    filterSidebarCard.style.display = filterSidebarCard.style.display === 'none' ? '' : 'none';
   });
   filterSidebar.addEventListener('click', (e) => {
     const header = e.target.closest('.accordion-header');
@@ -1436,7 +1472,6 @@
     addBtn.style.display = 'none';
   }
 
-  [filterLocation, filterPikmin, filterFloral].forEach(sel => sel.addEventListener('change', renderAllGrid));
   [filterSentBtn, filterReceivedBtn].forEach(btn => {
     btn.addEventListener('click', () => { btn.classList.toggle('active'); renderAllGrid(); });
   });
