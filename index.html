@@ -156,22 +156,26 @@
     align-items: flex-start;
     gap: 16px;
   }
+  #filterSidebarCard { flex: 0 0 auto; width: 100%; }
   @media (max-width: 639px) {
     .content-row { flex-direction: column; }
-    /* On phones the category list opens as a full-screen overlay directly
+    /* On phones the category list opens as a left-anchored overlay directly
        on top of the postcard grid (instead of pushing it down the page) —
-       tapping ☰ again closes it and reveals the grid underneath again. */
+       same width as the desktop sidebar, just floating over the grid
+       instead of sitting beside it. Tapping ☰ again closes it. */
     #filterSidebarCard {
       position: fixed;
-      inset: 0;
+      top: 0;
+      left: 0;
+      bottom: 0;
       z-index: 24;
-      width: 100%;
+      width: 240px;
+      max-width: 85vw;
       margin: 0;
       border-radius: 0;
       overflow-y: auto;
     }
   }
-  #filterSidebarCard { flex: 0 0 auto; width: 100%; }
   @media (min-width: 640px) {
     #filterSidebarCard { width: 240px; }
   }
@@ -914,6 +918,32 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
   }
 
+  // Normalizes a "座標" entry to "緯度,經度" with exactly 6 decimal places.
+  // Strips wrapping brackets, converts stray Chinese numerals (a common typo
+  // when an IME is still active, e.g. "18.7662一二" meaning "18.766212")
+  // back into digits, then validates. Returns { value, error } — value is
+  // null when the text can't be salvaged into two real numbers.
+  function normalizeCoords(raw) {
+    const s0 = String(raw ?? '').trim();
+    if (!s0) return { value: '', error: null };
+    let s = s0.replace(/^[\(\[【]/, '').replace(/[\)\]】]$/, '').trim();
+    const cnDigits = { '零': '0', '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6', '七': '7', '八': '8', '九': '9' };
+    s = s.replace(/[零一二三四五六七八九]/g, ch => cnDigits[ch]);
+    const parts = s.split(/[,,]/).map(p => p.trim());
+    if (parts.length !== 2) {
+      return { value: null, error: '座標格式錯誤,需要「緯度,經度」兩個數字(用逗號分隔)' };
+    }
+    const [latRaw, lonRaw] = parts;
+    if (!/^-?\d+(\.\d+)?$/.test(latRaw) || !/^-?\d+(\.\d+)?$/.test(lonRaw)) {
+      return { value: null, error: '座標包含無法辨識的文字,請確認後手動修正' };
+    }
+    const lat = parseFloat(latRaw), lon = parseFloat(lonRaw);
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      return { value: null, error: '座標數值超出範圍(緯度 -90~90,經度 -180~180)' };
+    }
+    return { value: lat.toFixed(6) + ',' + lon.toFixed(6), error: null };
+  }
+
   // Every custom tag ever typed (across all postcards) becomes a reusable
   // suggestion — once you've created one, you can just click it next time
   // instead of retyping it. Tags declared straight from the sidebar filter
@@ -1623,7 +1653,14 @@
     const favorite = editFavoriteBtn.classList.contains('active');
     const customTags = editTagCtrl.get();
     const customTag = customTags.join('|');
-    const coords = editCoordInput.value.trim();
+    const coordsCheck = normalizeCoords(editCoordInput.value);
+    if (coordsCheck.error) {
+      editFormMsg.textContent = coordsCheck.error;
+      editFormMsg.className = 'err';
+      return;
+    }
+    const coords = coordsCheck.value;
+    editCoordInput.value = coords;
     const notes = editNotesInput.value.trim();
 
     editSaveBtn.disabled = true;
@@ -1987,7 +2024,14 @@
     const received = receivedBtn.classList.contains('active');
     const favorite = favoriteBtn.classList.contains('active');
     const customTag = addTagCtrl.get().join('|');
-    const coords = document.getElementById('coordInput').value.trim();
+    const coordsCheck = normalizeCoords(document.getElementById('coordInput').value);
+    if (coordsCheck.error) {
+      formMsg.textContent = coordsCheck.error;
+      formMsg.className = 'err';
+      return;
+    }
+    const coords = coordsCheck.value;
+    document.getElementById('coordInput').value = coords;
     const notes = document.getElementById('notesInput').value.trim();
 
     saveBtn.disabled = true;
