@@ -146,6 +146,19 @@
     align-items: stretch;
   }
   .toggle-group.vertical .toggle-btn { text-align: left; }
+  .content-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  @media (max-width: 639px) {
+    .content-row { flex-direction: column; }
+  }
+  #filterSidebarCard { flex: 0 0 auto; width: 100%; }
+  @media (min-width: 640px) {
+    #filterSidebarCard { width: 240px; }
+  }
+  #allSection { flex: 1; min-width: 0; }
   .accordion-section {
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -521,12 +534,12 @@
       <button type="button" class="btn secondary icon-btn" id="sidebarToggleBtn" aria-label="分類篩選">☰</button>
       <button type="button" class="star-toggle" id="favToggleBtn" aria-label="只顯示珍藏">⭐</button>
       <div class="toggle-group">
-        <button type="button" class="toggle-btn active" id="sortNewestBtn">最晚到最早</button>
-        <button type="button" class="toggle-btn" id="sortOldestBtn">最早到最晚</button>
+        <button type="button" class="toggle-btn active" id="sortToggleBtn">近期上傳</button>
         <button type="button" class="toggle-btn" id="filterUneditedBtn">未編輯</button>
       </div>
     </div>
 
+    <div class="content-row">
     <div class="card" id="filterSidebarCard" style="display:none">
       <aside class="filter-sidebar" id="filterSidebar">
         <div class="accordion-section">
@@ -571,7 +584,6 @@
               <button type="button" class="toggle-btn" data-value="花點">花點</button>
               <button type="button" class="toggle-btn" data-value="菇點">菇點</button>
               <button type="button" class="toggle-btn" data-value="探險">探險</button>
-              <button type="button" class="toggle-btn" data-value="隱藏">隱藏</button>
             </div>
           </div>
         </div>
@@ -600,6 +612,7 @@
 
     <div class="card" id="allSection">
       <div class="grid grid-all" id="allGrid"></div>
+    </div>
     </div>
   </div>
 
@@ -657,7 +670,7 @@
         <label for="pointTypeSelect">獲取方式</label>
         <select id="pointTypeSelect">
           <option value="">請選擇</option>
-          <option>花點</option><option>菇點</option><option>探險</option><option>隱藏</option>
+          <option>花點</option><option>菇點</option><option>探險</option>
         </select>
       </div>
       <div class="field">
@@ -721,7 +734,7 @@
         <label for="editPointTypeSelect">獲取方式</label>
         <select id="editPointTypeSelect">
           <option value="">請選擇</option>
-          <option>花點</option><option>菇點</option><option>探險</option><option>隱藏</option>
+          <option>花點</option><option>菇點</option><option>探險</option>
         </select>
       </div>
       <div class="field">
@@ -794,8 +807,7 @@
   const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
   const filterSidebar = document.getElementById('filterSidebar');
   const filterSidebarCard = document.getElementById('filterSidebarCard');
-  const sortNewestBtn = document.getElementById('sortNewestBtn');
-  const sortOldestBtn = document.getElementById('sortOldestBtn');
+  const sortToggleBtn = document.getElementById('sortToggleBtn');
   const filterUneditedBtn = document.getElementById('filterUneditedBtn');
   const locationOptionList = document.getElementById('locationOptionList');
   const pikminOptionList = document.getElementById('pikminOptionList');
@@ -1351,16 +1363,14 @@
     renderAllGrid();
   });
 
-  sortNewestBtn.addEventListener('click', () => {
-    sortDirection = 'desc';
-    sortNewestBtn.classList.add('active');
-    sortOldestBtn.classList.remove('active');
-    renderAllGrid();
-  });
-  sortOldestBtn.addEventListener('click', () => {
-    sortDirection = 'asc';
-    sortOldestBtn.classList.add('active');
-    sortNewestBtn.classList.remove('active');
+  sortToggleBtn.addEventListener('click', () => {
+    if (sortDirection === 'desc') {
+      sortDirection = 'asc';
+      sortToggleBtn.textContent = '最早上傳';
+    } else {
+      sortDirection = 'desc';
+      sortToggleBtn.textContent = '近期上傳';
+    }
     renderAllGrid();
   });
   filterUneditedBtn.addEventListener('click', () => {
