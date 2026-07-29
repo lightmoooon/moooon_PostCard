@@ -962,23 +962,58 @@
   async function driveLoadConfig() {
     try {
       const q = `appProperties has { key='app' and value='${APP_TAG}' } and appProperties has { key='configType' and value='appConfig' } and trashed=false`;
-      const url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id)&pageSize=1`;
+      const url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id)&pageSize=20`;
       const res = await fetch(url, { headers: driveHeaders() });
       if (!res.ok) return;
       const data = await res.json();
-      const file = (data.files || [])[0];
-      if (!file) { configFileId = null; declaredTagsCache = []; return; }
-      configFileId = file.id;
-      const contentRes = await fetch(`${DRIVE_API}/files/${configFileId}?alt=media`, { headers: driveHeaders() });
-      if (!contentRes.ok) return;
-      const config = await contentRes.json().catch(() => ({}));
-      declaredTagsCache = Array.isArray(config.declaredTags) ? config.declaredTags : [];
+      const files = data.files || [];
+      if (files.length === 0) { configFileId = null; declaredTagsCache = []; return; }
+      // Two tags declared back-to-back — on this device or another — before
+      // configFileId was known could each take the "create a new file"
+      // branch below, leaving tags split across more than one config file.
+      // Merge every matching file's tags together so none of them look like
+      // they "disappeared", and keep the first as the one this device
+      // writes back to from now on.
+      const allTags = new Set();
+      for (const file of files) {
+        try {
+          const contentRes = await fetch(`${DRIVE_API}/files/${file.id}?alt=media`, { headers: driveHeaders() });
+          if (!contentRes.ok) continue;
+          const config = await contentRes.json().catch(() => ({}));
+          (Array.isArray(config.declaredTags) ? config.declaredTags : []).forEach(t => allTags.add(t));
+        } catch (e) { /* skip this one, still have the rest */ }
+      }
+      configFileId = files[0].id;
+      declaredTagsCache = Array.from(allTags).sort();
+      if (files.length > 1) await driveSaveConfig(); // consolidate the merge back into the primary file
     } catch (e) { /* config load failed — known tags still work via postcards already in use */ }
   }
 
-  async function driveSaveConfig() {
-    const body = JSON.stringify({ declaredTags: declaredTagsCache });
+  // Saves are queued one at a time (never run concurrently on this device)
+  // and each one re-reads the server's current tags immediately before
+  // writing, merging them into declaredTagsCache first. Without this, two
+  // tags declared back-to-back — before the first save's response even came
+  // back — could each see configFileId as still null and both create their
+  // own config file; and a device that had been logged in for hours would
+  // blindly overwrite whatever another device saved in the meantime with its
+  // own stale in-memory list, making the other device's tag vanish on
+  // refresh.
+  let configSaveChain = Promise.resolve();
+  function driveSaveConfig() {
+    configSaveChain = configSaveChain.then(driveSaveConfigSerialized).catch(() => {});
+    return configSaveChain;
+  }
+  async function driveSaveConfigSerialized() {
     try {
+      if (configFileId) {
+        const contentRes = await fetch(`${DRIVE_API}/files/${configFileId}?alt=media`, { headers: driveHeaders() });
+        if (contentRes.ok) {
+          const serverConfig = await contentRes.json().catch(() => ({}));
+          const serverTags = Array.isArray(serverConfig.declaredTags) ? serverConfig.declaredTags : [];
+          declaredTagsCache = Array.from(new Set([...serverTags, ...declaredTagsCache])).sort();
+        }
+      }
+      const body = JSON.stringify({ declaredTags: declaredTagsCache });
       if (configFileId) {
         await fetch(`${DRIVE_UPLOAD_API}/files/${configFileId}?uploadType=media`, {
           method: 'PATCH',
@@ -1003,6 +1038,9 @@
         const data = await res.json().catch(() => null);
         if (data && data.id) configFileId = data.id;
       }
+      refreshTagSelect(filterCustomTagSelect, filterTagCtrl);
+      refreshTagSelect(customTagSelect, addTagCtrl);
+      refreshTagSelect(editCustomTagSelect, editTagCtrl);
     } catch (e) { /* best-effort sync — the tag still works locally this session either way */ }
   }
 
@@ -1492,7 +1530,7 @@
   // suggestion chips gets tedious. Shared by all three contexts so a tag
   // declared anywhere immediately becomes pickable everywhere.
   function refreshTagSelect(selectEl, ctrl) {
-    const known = getAllKnownCustomTags().filter(t => !ctrl.get().includes(t));
+    const known = getAllKnownCustomTags();
     selectEl.innerHTML = '<option value="">選擇已建立的標籤</option>' +
       known.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
   }
@@ -2054,6 +2092,24 @@
   }
   function closeAddModal() {
     addModalBackdrop.style.display = 'none';
+    resetAllFilters();
+  }
+
+  // Leaving the add-postcard flow always returns to the unfiltered list —
+  // any category filters left active from before would otherwise hide the
+  // postcard just added (e.g. it has no location yet, so a 地點 filter
+  // would exclude it), which looks like the save silently did nothing.
+  function resetAllFilters() {
+    locationCtrl.set([]);
+    pikminCtrl.set([]);
+    floralCtrl.set([]);
+    filterTagCtrl.set([]);
+    filterSentBtn.classList.remove('active');
+    filterReceivedBtn.classList.remove('active');
+    filterUneditedBtn.classList.remove('active');
+    onlyFavorites = false;
+    favToggleBtn.classList.remove('active');
+    renderAllGrid();
   }
 
   addBtn.addEventListener('click', openAddModal);
