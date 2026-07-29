@@ -900,7 +900,7 @@
 
   const addTagCtrl = makeTagChipController(customTagChips, customTagInput, null, customTagAddBtn, () => refreshTagSelect(customTagSelect, addTagCtrl));
   const editTagCtrl = makeTagChipController(editCustomTagChips, editCustomTagInput, null, editCustomTagAddBtn, () => refreshTagSelect(editCustomTagSelect, editTagCtrl));
-  const filterTagCtrl = makeTagChipController(filterCustomTagChips, filterCustomTagInput, null, filterCustomTagAddBtn, () => renderAllGrid());
+  const filterTagCtrl = makeTagChipController(filterCustomTagChips, filterCustomTagInput, null, filterCustomTagAddBtn, () => renderAllGrid(), { declareOnly: true });
   const locationCtrl = makeMultiSelectButtonGroup(locationOptionList, () => renderAllGrid());
   const pikminCtrl = makeMultiSelectButtonGroup(pikminOptionList, () => renderAllGrid());
   const floralCtrl = makeMultiSelectButtonGroup(floralOptionList, () => renderAllGrid());
@@ -1095,7 +1095,8 @@
   // already added (each removable), a text box that adds a new chip on
   // Enter, and a row of previously-used tags you can click to reuse instead
   // of retyping.
-  function makeTagChipController(chipsEl, inputEl, suggestEl, addBtnEl, onChange) {
+  function makeTagChipController(chipsEl, inputEl, suggestEl, addBtnEl, onChange, opts) {
+    const declareOnly = !!(opts && opts.declareOnly);
     let tags = [];
     function render() {
       chipsEl.innerHTML = tags.map((t, i) =>
@@ -1111,7 +1112,13 @@
     function addFromInput() {
       const v = inputEl.value.trim();
       inputEl.value = '';
-      if (v && !tags.includes(v)) { tags.push(v); declareCustomTag(v); render(); if (onChange) onChange(); }
+      if (!v) return;
+      // The sidebar filter's input is for pre-declaring a brand-new tag so
+      // it becomes pickable everywhere — typing one there shouldn't also
+      // turn it into an active filter (declareCustomTag already refreshes
+      // every dropdown, including this one, on its own).
+      if (declareOnly) { declareCustomTag(v); return; }
+      if (!tags.includes(v)) { tags.push(v); declareCustomTag(v); render(); if (onChange) onChange(); }
     }
     chipsEl.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-remove-tag]');
