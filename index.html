@@ -271,6 +271,56 @@
   }
   .tag-suggest-chip:hover { border-color: var(--accent); color: var(--text); }
 
+  .tag-combo { position: relative; margin-bottom: 8px; }
+  .tag-combo-toggle { width: 100%; text-align: left; }
+  .tag-combo-menu {
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    z-index: 30;
+    margin-top: 4px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  }
+  .tag-combo-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 10px;
+  }
+  .tag-combo-row:hover { background: var(--accent-soft); }
+  .tag-combo-row + .tag-combo-row { border-top: 1px solid var(--border); }
+  .tag-combo-option {
+    flex: 1;
+    text-align: left;
+    appearance: none;
+    border: none;
+    background: none;
+    color: var(--text);
+    font-size: 13.5px;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0;
+  }
+  .tag-combo-delete {
+    appearance: none;
+    border: none;
+    background: rgba(0,0,0,0.15);
+    color: inherit;
+    border-radius: 50%;
+    width: 18px; height: 18px;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .tag-combo-empty { padding: 10px; font-size: 12.5px; color: var(--text-muted); }
+
   .section-title { display: flex; align-items: center; gap: 8px; }
   .star-toggle {
     appearance: none;
@@ -616,13 +666,12 @@
           <button type="button" class="accordion-header" data-acc-target="accBodyCustomTag">自定義標籤</button>
           <div class="accordion-body" id="accBodyCustomTag" style="display:none">
             <div class="tag-chip-row" id="filterCustomTagChips"></div>
-            <select id="filterCustomTagSelect" style="margin-bottom:8px;">
-              <option value="">選擇已建立的標籤</option>
-            </select>
+            <div class="tag-combo">
+              <button type="button" class="btn secondary tag-combo-toggle" id="filterCustomTagComboBtn">選擇已建立的標籤 ▾</button>
+              <div class="tag-combo-menu" id="filterCustomTagComboMenu" style="display:none;"></div>
+            </div>
             <input type="text" id="filterCustomTagInput" placeholder="新增標籤分類">
             <button type="button" class="btn secondary" id="filterCustomTagAddBtn" style="margin-top:8px;">新增</button>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:10px;margin-bottom:4px;">已建立的標籤(點 ✕ 刪除)</div>
-            <div class="tag-chip-row" id="knownTagsManageList"></div>
           </div>
         </div>
         <div class="accordion-section">
@@ -703,9 +752,10 @@
       <div class="field">
         <label for="customTagInput">自定義標籤</label>
         <div class="tag-chip-row" id="customTagChips"></div>
-        <select id="customTagSelect" style="margin-bottom:8px;">
-          <option value="">選擇已建立的標籤</option>
-        </select>
+        <div class="tag-combo">
+          <button type="button" class="btn secondary tag-combo-toggle" id="customTagComboBtn">選擇已建立的標籤 ▾</button>
+          <div class="tag-combo-menu" id="customTagComboMenu" style="display:none;"></div>
+        </div>
         <input type="text" id="customTagInput" placeholder="輸入標籤">
         <button type="button" class="btn secondary" id="customTagAddBtn" style="margin-top:8px;">新增</button>
       </div>
@@ -769,9 +819,10 @@
       <div class="field">
         <label for="editCustomTagInput">自定義標籤</label>
         <div class="tag-chip-row" id="editCustomTagChips"></div>
-        <select id="editCustomTagSelect" style="margin-bottom:8px;">
-          <option value="">選擇已建立的標籤</option>
-        </select>
+        <div class="tag-combo">
+          <button type="button" class="btn secondary tag-combo-toggle" id="editCustomTagComboBtn">選擇已建立的標籤 ▾</button>
+          <div class="tag-combo-menu" id="editCustomTagComboMenu" style="display:none;"></div>
+        </div>
         <input type="text" id="editCustomTagInput" placeholder="輸入標籤">
         <button type="button" class="btn secondary" id="editCustomTagAddBtn" style="margin-top:8px;">新增</button>
       </div>
@@ -847,10 +898,10 @@
   const filterSentBtn = document.getElementById('filterSentBtn');
   const filterReceivedBtn = document.getElementById('filterReceivedBtn');
   const filterCustomTagChips = document.getElementById('filterCustomTagChips');
-  const filterCustomTagSelect = document.getElementById('filterCustomTagSelect');
+  const filterCustomTagComboBtn = document.getElementById('filterCustomTagComboBtn');
+  const filterCustomTagComboMenu = document.getElementById('filterCustomTagComboMenu');
   const filterCustomTagInput = document.getElementById('filterCustomTagInput');
   const filterCustomTagAddBtn = document.getElementById('filterCustomTagAddBtn');
-  const knownTagsManageList = document.getElementById('knownTagsManageList');
 
   const addModalBackdrop = document.getElementById('addModalBackdrop');
   const addForm = document.getElementById('addForm');
@@ -870,7 +921,8 @@
   const favoriteBtn = document.getElementById('favoriteBtn');
   const customTagChips = document.getElementById('customTagChips');
   const customTagInput = document.getElementById('customTagInput');
-  const customTagSelect = document.getElementById('customTagSelect');
+  const customTagComboBtn = document.getElementById('customTagComboBtn');
+  const customTagComboMenu = document.getElementById('customTagComboMenu');
   const customTagAddBtn = document.getElementById('customTagAddBtn');
   const nameFieldWrap = document.getElementById('nameFieldWrap');
   const coordFieldWrap = document.getElementById('coordFieldWrap');
@@ -891,7 +943,8 @@
   const editFavoriteBtn = document.getElementById('editFavoriteBtn');
   const editCustomTagChips = document.getElementById('editCustomTagChips');
   const editCustomTagInput = document.getElementById('editCustomTagInput');
-  const editCustomTagSelect = document.getElementById('editCustomTagSelect');
+  const editCustomTagComboBtn = document.getElementById('editCustomTagComboBtn');
+  const editCustomTagComboMenu = document.getElementById('editCustomTagComboMenu');
   const editCustomTagAddBtn = document.getElementById('editCustomTagAddBtn');
   const editNameInput = document.getElementById('editNameInput');
   const editCoordInput = document.getElementById('editCoordInput');
@@ -902,15 +955,15 @@
   const editSaveBtn = document.getElementById('editSaveBtn');
   let editingId = null;
 
-  const addTagCtrl = makeTagChipController(customTagChips, customTagInput, null, customTagAddBtn, () => refreshTagSelect(customTagSelect, addTagCtrl));
-  const editTagCtrl = makeTagChipController(editCustomTagChips, editCustomTagInput, null, editCustomTagAddBtn, () => refreshTagSelect(editCustomTagSelect, editTagCtrl));
+  const addTagCtrl = makeTagChipController(customTagChips, customTagInput, null, customTagAddBtn);
+  const editTagCtrl = makeTagChipController(editCustomTagChips, editCustomTagInput, null, editCustomTagAddBtn);
   const filterTagCtrl = makeTagChipController(filterCustomTagChips, filterCustomTagInput, null, filterCustomTagAddBtn, () => renderAllGrid(), { declareOnly: true });
   const locationCtrl = makeMultiSelectButtonGroup(locationOptionList, () => renderAllGrid());
   const pikminCtrl = makeMultiSelectButtonGroup(pikminOptionList, () => renderAllGrid());
   const floralCtrl = makeMultiSelectButtonGroup(floralOptionList, () => renderAllGrid());
-  wireTagSelect(filterCustomTagSelect, filterTagCtrl, () => renderAllGrid());
-  wireTagSelect(customTagSelect, addTagCtrl);
-  wireTagSelect(editCustomTagSelect, editTagCtrl);
+  const filterTagCombo = makeTagCombo(filterCustomTagComboBtn, filterCustomTagComboMenu, filterTagCtrl, () => renderAllGrid());
+  const addTagCombo = makeTagCombo(customTagComboBtn, customTagComboMenu, addTagCtrl);
+  const editTagCombo = makeTagCombo(editCustomTagComboBtn, editCustomTagComboMenu, editTagCtrl);
 
   let accessToken = null;
   let currentUser = null;
@@ -993,15 +1046,45 @@
     } catch (e) { /* config load failed — known tags still work via postcards already in use */ }
   }
 
-  // Saves are queued one at a time (never run concurrently on this device)
-  // and each one re-reads the server's current tags immediately before
-  // writing, merging them into declaredTagsCache first. Without this, two
-  // tags declared back-to-back — before the first save's response even came
-  // back — could each see configFileId as still null and both create their
-  // own config file; and a device that had been logged in for hours would
-  // blindly overwrite whatever another device saved in the meantime with its
-  // own stale in-memory list, making the other device's tag vanish on
-  // refresh.
+  async function writeConfigTags(tags) {
+    const body = JSON.stringify({ declaredTags: tags });
+    if (configFileId) {
+      await fetch(`${DRIVE_UPLOAD_API}/files/${configFileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: driveHeaders({ 'Content-Type': 'application/json' }),
+        body
+      });
+    } else {
+      const boundary = 'pikmin_boundary_' + Date.now();
+      const metadataPart = JSON.stringify({
+        name: 'pikmin_postcards_config.json',
+        appProperties: { app: APP_TAG, configType: 'appConfig' }
+      });
+      const multipartBody =
+        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadataPart}\r\n` +
+        `--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n` +
+        `--${boundary}--`;
+      const res = await fetch(`${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id`, {
+        method: 'POST',
+        headers: driveHeaders({ 'Content-Type': `multipart/related; boundary=${boundary}` }),
+        body: multipartBody
+      });
+      const data = await res.json().catch(() => null);
+      if (data && data.id) configFileId = data.id;
+    }
+  }
+  async function fetchServerDeclaredTags() {
+    if (!configFileId) return [];
+    const contentRes = await fetch(`${DRIVE_API}/files/${configFileId}?alt=media`, { headers: driveHeaders() });
+    if (!contentRes.ok) return [];
+    const serverConfig = await contentRes.json().catch(() => ({}));
+    return Array.isArray(serverConfig.declaredTags) ? serverConfig.declaredTags : [];
+  }
+  // Every write to the config file is queued one at a time (never run
+  // concurrently on this device). Without this, two tags declared
+  // back-to-back — before the first save's response even came back — could
+  // each see configFileId as still null and both create their own config
+  // file, splitting tags across two files.
   let configSaveChain = Promise.resolve();
   function driveSaveConfig() {
     configSaveChain = configSaveChain.then(driveSaveConfigSerialized).catch(() => {});
@@ -1009,39 +1092,31 @@
   }
   async function driveSaveConfigSerialized() {
     try {
-      if (configFileId) {
-        const contentRes = await fetch(`${DRIVE_API}/files/${configFileId}?alt=media`, { headers: driveHeaders() });
-        if (contentRes.ok) {
-          const serverConfig = await contentRes.json().catch(() => ({}));
-          const serverTags = Array.isArray(serverConfig.declaredTags) ? serverConfig.declaredTags : [];
-          declaredTagsCache = Array.from(new Set([...serverTags, ...declaredTagsCache])).sort();
-        }
-      }
-      const body = JSON.stringify({ declaredTags: declaredTagsCache });
-      if (configFileId) {
-        await fetch(`${DRIVE_UPLOAD_API}/files/${configFileId}?uploadType=media`, {
-          method: 'PATCH',
-          headers: driveHeaders({ 'Content-Type': 'application/json' }),
-          body
-        });
-      } else {
-        const boundary = 'pikmin_boundary_' + Date.now();
-        const metadataPart = JSON.stringify({
-          name: 'pikmin_postcards_config.json',
-          appProperties: { app: APP_TAG, configType: 'appConfig' }
-        });
-        const multipartBody =
-          `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadataPart}\r\n` +
-          `--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n` +
-          `--${boundary}--`;
-        const res = await fetch(`${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id`, {
-          method: 'POST',
-          headers: driveHeaders({ 'Content-Type': `multipart/related; boundary=${boundary}` }),
-          body: multipartBody
-        });
-        const data = await res.json().catch(() => null);
-        if (data && data.id) configFileId = data.id;
-      }
+      const serverTags = await fetchServerDeclaredTags();
+      declaredTagsCache = Array.from(new Set([...serverTags, ...declaredTagsCache])).sort();
+      await writeConfigTags(declaredTagsCache);
+      refreshAllCustomTagUI();
+    } catch (e) { /* best-effort sync — the tag still works locally this session either way */ }
+  }
+  // Adding/removing one specific tag is its own queued operation that always
+  // starts from the server's freshest tags, rather than this device's local
+  // snapshot (which might still hold a tag another device already deleted,
+  // or be missing one another device already added). That keeps two devices
+  // changing different tags around the same time from ever clobbering each
+  // other — each device only ever contributes a single well-defined delta.
+  function driveAddDeclaredTagRemote(tag) {
+    configSaveChain = configSaveChain.then(() => runConfigTagOp(tags => tags.includes(tag) ? tags : [...tags, tag])).catch(() => {});
+    return configSaveChain;
+  }
+  function driveRemoveDeclaredTagRemote(tag) {
+    configSaveChain = configSaveChain.then(() => runConfigTagOp(tags => tags.filter(t => t !== tag))).catch(() => {});
+    return configSaveChain;
+  }
+  async function runConfigTagOp(mutate) {
+    try {
+      const serverTags = await fetchServerDeclaredTags();
+      declaredTagsCache = mutate(serverTags.slice()).sort();
+      await writeConfigTags(declaredTagsCache);
       refreshAllCustomTagUI();
     } catch (e) { /* best-effort sync — the tag still works locally this session either way */ }
   }
@@ -1080,8 +1155,8 @@
   function declareCustomTag(tag) {
     if (!declaredTagsCache.includes(tag)) {
       declaredTagsCache.push(tag);
-      driveSaveConfig(); // fire-and-forget so the UI doesn't wait on this
       refreshAllCustomTagUI();
+      driveAddDeclaredTagRemote(tag); // fire-and-forget so the UI doesn't wait on this
     }
   }
   function getAllKnownCustomTags() {
@@ -1530,29 +1605,54 @@
     });
   }
 
-  // Quick-pick dropdown alongside each chip UI (sidebar filter, add form, edit
-  // form) — handy once there are enough known tags that scrolling through
-  // suggestion chips gets tedious. Shared by all three contexts so a tag
-  // declared anywhere immediately becomes pickable everywhere.
-  function refreshTagSelect(selectEl, ctrl) {
-    const known = getAllKnownCustomTags();
-    selectEl.innerHTML = '<option value="">選擇已建立的標籤</option>' +
-      known.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-  }
-  // Full management list of every known tag (sidebar only) — each shown as a
-  // chip with its own ✕ so a tag can be deleted outright, distinct from the
-  // dropdowns above which only ever add a tag to whatever's currently open.
-  function renderKnownTagsManageList() {
-    const known = getAllKnownCustomTags();
-    knownTagsManageList.innerHTML = known.map(t =>
-      `<span class="tag-chip">${escapeHtml(t)}<button type="button" data-delete-known-tag="${escapeHtml(t)}" aria-label="刪除標籤">✕</button></span>`
-    ).join('');
+  // Quick-pick dropdown alongside each chip UI (sidebar filter, add form,
+  // edit form) — handy once there are enough known tags that scrolling
+  // through suggestion chips gets tedious. Delete is merged directly into
+  // each option (rather than a separate management list) so a tag can be
+  // removed from wherever it's being picked. Shared by all three contexts,
+  // so declaring or deleting a tag anywhere immediately updates the other two.
+  function makeTagCombo(toggleBtn, menuEl, ctrl, afterPick) {
+    function render() {
+      const known = getAllKnownCustomTags();
+      menuEl.innerHTML = known.length
+        ? known.map(t => `
+            <div class="tag-combo-row">
+              <button type="button" class="tag-combo-option" data-pick-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>
+              <button type="button" class="tag-combo-delete" data-delete-tag="${escapeHtml(t)}" aria-label="刪除標籤">✕</button>
+            </div>`).join('')
+        : `<div class="tag-combo-empty">尚無已建立的標籤</div>`;
+    }
+    function open() { render(); menuEl.style.display = ''; }
+    function close() { menuEl.style.display = 'none'; }
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (menuEl.style.display === 'none') open(); else close();
+    });
+    menuEl.addEventListener('click', (e) => {
+      const pickBtn = e.target.closest('[data-pick-tag]');
+      if (pickBtn) {
+        const v = pickBtn.getAttribute('data-pick-tag');
+        const current = ctrl.get();
+        if (!current.includes(v)) ctrl.set([...current, v]);
+        close();
+        if (afterPick) afterPick();
+        return;
+      }
+      const delBtn = e.target.closest('[data-delete-tag]');
+      if (delBtn) {
+        e.stopPropagation();
+        deleteDeclaredTag(delBtn.getAttribute('data-delete-tag'));
+      }
+    });
+    document.addEventListener('click', (e) => {
+      if (menuEl.style.display !== 'none' && !menuEl.contains(e.target) && e.target !== toggleBtn) close();
+    });
+    return { render };
   }
   function refreshAllCustomTagUI() {
-    refreshTagSelect(filterCustomTagSelect, filterTagCtrl);
-    refreshTagSelect(customTagSelect, addTagCtrl);
-    refreshTagSelect(editCustomTagSelect, editTagCtrl);
-    renderKnownTagsManageList();
+    filterTagCombo.render();
+    addTagCombo.render();
+    editTagCombo.render();
   }
   // Deleting a tag removes it from the declared list AND strips it from
   // every postcard currently using it — otherwise it would just reappear in
@@ -1561,7 +1661,8 @@
   async function deleteDeclaredTag(tag) {
     if (!confirm(`確定要刪除標籤「${tag}」嗎?這會從所有明信片與已建立列表中移除此標籤。`)) return;
     declaredTagsCache = declaredTagsCache.filter(t => t !== tag);
-    await driveSaveConfig();
+    refreshAllCustomTagUI();
+    await driveRemoveDeclaredTagRemote(tag);
     const affected = allPostcardsCache.filter(p => (p.customTags || []).includes(tag));
     for (const pc of affected) {
       const newTags = pc.customTags.filter(t => t !== tag);
@@ -1578,22 +1679,6 @@
     addTagCtrl.set(addTagCtrl.get().filter(t => t !== tag));
     editTagCtrl.set(editTagCtrl.get().filter(t => t !== tag));
     renderAllGrid();
-  }
-  knownTagsManageList.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-delete-known-tag]');
-    if (!btn) return;
-    deleteDeclaredTag(btn.getAttribute('data-delete-known-tag'));
-  });
-  function wireTagSelect(selectEl, ctrl, afterPick) {
-    selectEl.addEventListener('change', () => {
-      const v = selectEl.value;
-      selectEl.value = '';
-      if (!v) return;
-      const current = ctrl.get();
-      if (!current.includes(v)) ctrl.set([...current, v]);
-      refreshTagSelect(selectEl, ctrl);
-      if (afterPick) afterPick();
-    });
   }
 
   function renderAllGrid() {
@@ -1723,7 +1808,7 @@
       receivedBtn.classList.toggle('active', !!draft.received);
       favoriteBtn.classList.toggle('active', !!draft.favorite);
       addTagCtrl.set(draft.customTags || []);
-      refreshTagSelect(customTagSelect, addTagCtrl);
+      refreshAllCustomTagUI();
       document.getElementById('coordInput').value = draft.coords || '';
       document.getElementById('notesInput').value = draft.notes || '';
       formMsg.textContent = '已還原上次未完成的內容,請重新選擇照片。';
@@ -1739,7 +1824,7 @@
       editReceivedBtn.classList.toggle('active', !!draft.received);
       editFavoriteBtn.classList.toggle('active', !!draft.favorite);
       editTagCtrl.set(draft.customTags || []);
-      refreshTagSelect(editCustomTagSelect, editTagCtrl);
+      refreshAllCustomTagUI();
       editCoordInput.value = draft.coords || '';
       editNotesInput.value = draft.notes || '';
       editFormMsg.textContent = '已還原上次未完成的編輯內容。';
@@ -1834,7 +1919,7 @@
     editReceivedBtn.classList.toggle('active', !!pc.received);
     editFavoriteBtn.classList.toggle('active', !!pc.favorite);
     editTagCtrl.set(pc.customTags || []);
-    refreshTagSelect(editCustomTagSelect, editTagCtrl);
+    refreshAllCustomTagUI();
     editCoordInput.value = pc.coords || '';
     editNotesInput.value = pc.notes || '';
     editPhotoPreview.src = '';
@@ -2156,7 +2241,7 @@
     resetPhotoField();
     [sentBtn, receivedBtn, favoriteBtn].forEach(btn => btn.classList.remove('active'));
     addTagCtrl.set([]);
-    refreshTagSelect(customTagSelect, addTagCtrl);
+    refreshAllCustomTagUI();
     uploadProgress.style.display = 'none';
     uploadProgressBar.style.width = '0%';
     formMsg.textContent = '';
