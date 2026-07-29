@@ -701,9 +701,11 @@
       <div class="field">
         <label for="customTagInput">自定義標籤</label>
         <div class="tag-chip-row" id="customTagChips"></div>
+        <select id="customTagSelect" style="margin-bottom:8px;">
+          <option value="">選擇已建立的標籤</option>
+        </select>
         <input type="text" id="customTagInput" placeholder="輸入標籤">
         <button type="button" class="btn secondary" id="customTagAddBtn" style="margin-top:8px;">新增</button>
-        <div class="tag-suggest-row" id="customTagSuggestions"></div>
       </div>
       <div class="field">
         <label>寄出 / 收到 / 珍藏</label>
@@ -765,9 +767,11 @@
       <div class="field">
         <label for="editCustomTagInput">自定義標籤</label>
         <div class="tag-chip-row" id="editCustomTagChips"></div>
+        <select id="editCustomTagSelect" style="margin-bottom:8px;">
+          <option value="">選擇已建立的標籤</option>
+        </select>
         <input type="text" id="editCustomTagInput" placeholder="輸入標籤">
         <button type="button" class="btn secondary" id="editCustomTagAddBtn" style="margin-top:8px;">新增</button>
-        <div class="tag-suggest-row" id="editCustomTagSuggestions"></div>
       </div>
       <div class="field">
         <label>寄出 / 收到 / 珍藏</label>
@@ -862,7 +866,7 @@
   const favoriteBtn = document.getElementById('favoriteBtn');
   const customTagChips = document.getElementById('customTagChips');
   const customTagInput = document.getElementById('customTagInput');
-  const customTagSuggestions = document.getElementById('customTagSuggestions');
+  const customTagSelect = document.getElementById('customTagSelect');
   const customTagAddBtn = document.getElementById('customTagAddBtn');
   const nameFieldWrap = document.getElementById('nameFieldWrap');
   const coordFieldWrap = document.getElementById('coordFieldWrap');
@@ -883,7 +887,7 @@
   const editFavoriteBtn = document.getElementById('editFavoriteBtn');
   const editCustomTagChips = document.getElementById('editCustomTagChips');
   const editCustomTagInput = document.getElementById('editCustomTagInput');
-  const editCustomTagSuggestions = document.getElementById('editCustomTagSuggestions');
+  const editCustomTagSelect = document.getElementById('editCustomTagSelect');
   const editCustomTagAddBtn = document.getElementById('editCustomTagAddBtn');
   const editNameInput = document.getElementById('editNameInput');
   const editCoordInput = document.getElementById('editCoordInput');
@@ -894,20 +898,15 @@
   const editSaveBtn = document.getElementById('editSaveBtn');
   let editingId = null;
 
-  const addTagCtrl = makeTagChipController(customTagChips, customTagInput, customTagSuggestions, customTagAddBtn);
-  const editTagCtrl = makeTagChipController(editCustomTagChips, editCustomTagInput, editCustomTagSuggestions, editCustomTagAddBtn);
+  const addTagCtrl = makeTagChipController(customTagChips, customTagInput, null, customTagAddBtn, () => refreshTagSelect(customTagSelect, addTagCtrl));
+  const editTagCtrl = makeTagChipController(editCustomTagChips, editCustomTagInput, null, editCustomTagAddBtn, () => refreshTagSelect(editCustomTagSelect, editTagCtrl));
   const filterTagCtrl = makeTagChipController(filterCustomTagChips, filterCustomTagInput, null, filterCustomTagAddBtn, () => renderAllGrid());
   const locationCtrl = makeMultiSelectButtonGroup(locationOptionList, () => renderAllGrid());
   const pikminCtrl = makeMultiSelectButtonGroup(pikminOptionList, () => renderAllGrid());
   const floralCtrl = makeMultiSelectButtonGroup(floralOptionList, () => renderAllGrid());
-  filterCustomTagSelect.addEventListener('change', () => {
-    const v = filterCustomTagSelect.value;
-    filterCustomTagSelect.value = '';
-    if (!v) return;
-    const current = filterTagCtrl.get();
-    if (!current.includes(v)) filterTagCtrl.set([...current, v]);
-    renderAllGrid();
-  });
+  wireTagSelect(filterCustomTagSelect, filterTagCtrl, () => renderAllGrid());
+  wireTagSelect(customTagSelect, addTagCtrl);
+  wireTagSelect(editCustomTagSelect, editTagCtrl);
 
   let accessToken = null;
   let currentUser = null;
@@ -1027,6 +1026,9 @@
     if (!declaredTagsCache.includes(tag)) {
       declaredTagsCache.push(tag);
       driveSaveConfig(); // fire-and-forget so the UI doesn't wait on this
+      refreshTagSelect(filterCustomTagSelect, filterTagCtrl);
+      refreshTagSelect(customTagSelect, addTagCtrl);
+      refreshTagSelect(editCustomTagSelect, editTagCtrl);
     }
   }
   function getAllKnownCustomTags() {
@@ -1224,7 +1226,9 @@
     await driveLoadConfig();
     await migrateLegacyLocalDeclaredTags();
     filterTagCtrl.refresh();
-    refreshCustomTagSelect();
+    refreshTagSelect(filterCustomTagSelect, filterTagCtrl);
+    refreshTagSelect(customTagSelect, addTagCtrl);
+    refreshTagSelect(editCustomTagSelect, editTagCtrl);
     restoreEditDraftIfAny();
   }
 
@@ -1464,17 +1468,30 @@
     });
   }
 
-  // Quick-pick dropdown alongside the chip UI — handy once there are enough
-  // known tags that scrolling through suggestion chips gets tedious.
-  function refreshCustomTagSelect() {
-    const known = getAllKnownCustomTags().filter(t => !filterTagCtrl.get().includes(t));
-    filterCustomTagSelect.innerHTML = '<option value="">選擇已建立的標籤</option>' +
+  // Quick-pick dropdown alongside each chip UI (sidebar filter, add form, edit
+  // form) — handy once there are enough known tags that scrolling through
+  // suggestion chips gets tedious. Shared by all three contexts so a tag
+  // declared anywhere immediately becomes pickable everywhere.
+  function refreshTagSelect(selectEl, ctrl) {
+    const known = getAllKnownCustomTags().filter(t => !ctrl.get().includes(t));
+    selectEl.innerHTML = '<option value="">選擇已建立的標籤</option>' +
       known.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  }
+  function wireTagSelect(selectEl, ctrl, afterPick) {
+    selectEl.addEventListener('change', () => {
+      const v = selectEl.value;
+      selectEl.value = '';
+      if (!v) return;
+      const current = ctrl.get();
+      if (!current.includes(v)) ctrl.set([...current, v]);
+      refreshTagSelect(selectEl, ctrl);
+      if (afterPick) afterPick();
+    });
   }
 
   function renderAllGrid() {
     filterTagCtrl.refresh();
-    refreshCustomTagSelect();
+    refreshTagSelect(filterCustomTagSelect, filterTagCtrl);
     const list = sortPostcards(applyFilters(allPostcardsCache));
     if (list.length === 0) {
       allGrid.innerHTML = emptyGridHintHtml();
@@ -1576,6 +1593,7 @@
       receivedBtn.classList.toggle('active', !!draft.received);
       favoriteBtn.classList.toggle('active', !!draft.favorite);
       addTagCtrl.set(draft.customTags || []);
+      refreshTagSelect(customTagSelect, addTagCtrl);
       document.getElementById('coordInput').value = draft.coords || '';
       document.getElementById('notesInput').value = draft.notes || '';
       formMsg.textContent = '已還原上次未完成的內容,請重新選擇照片。';
@@ -1591,6 +1609,7 @@
       editReceivedBtn.classList.toggle('active', !!draft.received);
       editFavoriteBtn.classList.toggle('active', !!draft.favorite);
       editTagCtrl.set(draft.customTags || []);
+      refreshTagSelect(editCustomTagSelect, editTagCtrl);
       editCoordInput.value = draft.coords || '';
       editNotesInput.value = draft.notes || '';
       editFormMsg.textContent = '已還原上次未完成的編輯內容。';
@@ -1685,6 +1704,7 @@
     editReceivedBtn.classList.toggle('active', !!pc.received);
     editFavoriteBtn.classList.toggle('active', !!pc.favorite);
     editTagCtrl.set(pc.customTags || []);
+    refreshTagSelect(editCustomTagSelect, editTagCtrl);
     editCoordInput.value = pc.coords || '';
     editNotesInput.value = pc.notes || '';
     editPhotoPreview.src = '';
@@ -2006,6 +2026,7 @@
     resetPhotoField();
     [sentBtn, receivedBtn, favoriteBtn].forEach(btn => btn.classList.remove('active'));
     addTagCtrl.set([]);
+    refreshTagSelect(customTagSelect, addTagCtrl);
     uploadProgress.style.display = 'none';
     uploadProgressBar.style.width = '0%';
     formMsg.textContent = '';
