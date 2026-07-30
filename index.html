@@ -1524,18 +1524,47 @@
     return URL.createObjectURL(blob);
   }
 
+  // Google Drive caps each appProperties entry at 124 UTF-8 bytes, key+value
+  // combined — a limit that's easy to blow past with Chinese text, where
+  // every character costs 3 bytes (the old `.slice(0, 100)` counted JS
+  // string length, not bytes, so a ~40-character OCR-scanned name or a
+  // handful of Chinese custom tags joined together could sail well past it
+  // and get the whole save rejected with a 403).
+  function truncateUtf8Bytes(str, maxBytes) {
+    const encoded = new TextEncoder().encode(str);
+    if (encoded.length <= maxBytes) return str;
+    // Decoding leniently turns a chopped trailing multi-byte character into
+    // one or more U+FFFD replacement characters instead of throwing —
+    // stripping those is what avoids keeping a mangled half-character.
+    return new TextDecoder('utf-8').decode(encoded.slice(0, maxBytes)).replace(/�+$/, '');
+  }
+  // Drops whole tags from the end (rather than cutting mid-tag) until the
+  // pipe-joined string fits the byte budget, so an overflow reads as
+  // "some of your tags" rather than one tag with a mangled tail.
+  function truncateTagsToByteBudget(joinedTags, maxBytes) {
+    let list = joinedTags ? joinedTags.split('|') : [];
+    while (list.length > 0 && new TextEncoder().encode(list.join('|')).length > maxBytes) list.pop();
+    let joined = list.join('|');
+    if (new TextEncoder().encode(joined).length > maxBytes) joined = truncateUtf8Bytes(joined, maxBytes);
+    return joined;
+  }
+  function buildPostcardAppProperties(meta) {
+    return {
+      app: APP_TAG,
+      pcName: truncateUtf8Bytes(String(meta.name || ''), 118), // 124 - byteLength('pcName')
+      location: meta.location, pikmin: meta.pikmin, floral: meta.floral,
+      sent: String(!!meta.sent), received: String(!!meta.received), favorite: String(!!meta.favorite),
+      customTag: truncateTagsToByteBudget(String(meta.customTag || ''), 115) // 124 - byteLength('customTag')
+    };
+  }
+
   // Uses XHR (not fetch) so upload progress can be reported via onprogress —
   // fetch has no cross-browser request-upload-progress event.
   function driveUploadPostcard(fileBlob, meta, onProgress) {
     const boundary = 'pikmin_boundary_' + Date.now();
     const metadataPart = JSON.stringify({
       name: `postcard_${Date.now()}.jpg`,
-      appProperties: {
-        app: APP_TAG, pcName: String(meta.name || '').slice(0, 100),
-        location: meta.location, pikmin: meta.pikmin, floral: meta.floral,
-        sent: String(!!meta.sent), received: String(!!meta.received), favorite: String(!!meta.favorite),
-        customTag: String(meta.customTag || '').slice(0, 300)
-      },
+      appProperties: buildPostcardAppProperties(meta),
       description: JSON.stringify({ coords: meta.coords, notes: meta.notes })
     });
 
@@ -1576,12 +1605,7 @@
       method: 'PATCH',
       headers: driveHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
-        appProperties: {
-          app: APP_TAG, pcName: String(meta.name || '').slice(0, 100),
-          location: meta.location, pikmin: meta.pikmin, floral: meta.floral,
-          sent: String(!!meta.sent), received: String(!!meta.received), favorite: String(!!meta.favorite),
-          customTag: String(meta.customTag || '').slice(0, 300)
-        },
+        appProperties: buildPostcardAppProperties(meta),
         description: JSON.stringify({ coords: meta.coords, notes: meta.notes })
       })
     });
