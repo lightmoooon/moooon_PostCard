@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>皮可敏明信片</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5a9c5a">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="皮可敏明信片">
+<meta name="mobile-web-app-capable" content="yes">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
@@ -908,6 +916,15 @@
 
 <script>
 (function () {
+  // Registers the PWA service worker (app-shell caching only — see sw.js;
+  // Drive API calls are never intercepted). Safe to attempt unconditionally
+  // since 'serviceWorker' is undefined under file:// or unsupported browsers.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+
   // =====================================================================
   // 請把你自己 Google Cloud 專案的 OAuth Client ID 貼在這裡(在 Google
   // Cloud Console → API 和服務 → 憑證 → OAuth 用戶端 ID 可以找到,類型要選
