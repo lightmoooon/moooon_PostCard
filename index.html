@@ -274,16 +274,37 @@
   .tag-combo { position: relative; margin-bottom: 8px; }
   .tag-combo-toggle { width: 100%; text-align: left; }
   .tag-combo-menu {
-    position: absolute;
-    top: 100%; left: 0; right: 0;
-    z-index: 30;
-    margin-top: 4px;
-    max-height: 220px;
+    /* position: fixed (not absolute) + top/left/width set in JS from the
+       toggle button's own screen position — the sidebar accordion clips
+       overflow with `hidden` and the add/edit modals scroll their own
+       content, so an absolutely-positioned menu nested inside either would
+       get cut off instead of fully popping out. */
+    position: fixed;
+    z-index: 40;
+    max-height: 260px;
     overflow-y: auto;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 9px;
     box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  }
+  .tag-combo-search-row {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tag-combo-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 9px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
   }
   .tag-combo-row {
     display: flex;
@@ -320,6 +341,12 @@
     flex-shrink: 0;
   }
   .tag-combo-empty { padding: 10px; font-size: 12.5px; color: var(--text-muted); }
+  .tag-combo-hint {
+    padding: 7px 10px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
 
   .section-title { display: flex; align-items: center; gap: 8px; }
   .star-toggle {
@@ -668,10 +695,18 @@
             <div class="tag-chip-row" id="filterCustomTagChips"></div>
             <div class="tag-combo">
               <button type="button" class="btn secondary tag-combo-toggle" id="filterCustomTagComboBtn">選擇已建立的標籤 ▾</button>
-              <div class="tag-combo-menu" id="filterCustomTagComboMenu" style="display:none;"></div>
+              <div class="tag-combo-menu" id="filterCustomTagComboMenu" style="display:none;">
+                <div class="tag-combo-search-row">
+                  <input type="text" class="tag-combo-search" placeholder="搜尋標籤...">
+                </div>
+                <div class="tag-combo-list"></div>
+              </div>
             </div>
             <input type="text" id="filterCustomTagInput" placeholder="新增標籤分類">
-            <button type="button" class="btn secondary" id="filterCustomTagAddBtn" style="margin-top:8px;">新增</button>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button type="button" class="btn secondary" id="filterCustomTagAddBtn" style="flex:1;">新增</button>
+              <button type="button" class="btn secondary" id="filterCustomTagEditBtn" style="flex:1;">編輯</button>
+            </div>
           </div>
         </div>
         <div class="accordion-section">
@@ -754,10 +789,18 @@
         <div class="tag-chip-row" id="customTagChips"></div>
         <div class="tag-combo">
           <button type="button" class="btn secondary tag-combo-toggle" id="customTagComboBtn">選擇已建立的標籤 ▾</button>
-          <div class="tag-combo-menu" id="customTagComboMenu" style="display:none;"></div>
+          <div class="tag-combo-menu" id="customTagComboMenu" style="display:none;">
+            <div class="tag-combo-search-row">
+              <input type="text" class="tag-combo-search" placeholder="搜尋標籤...">
+            </div>
+            <div class="tag-combo-list"></div>
+          </div>
         </div>
         <input type="text" id="customTagInput" placeholder="輸入標籤">
-        <button type="button" class="btn secondary" id="customTagAddBtn" style="margin-top:8px;">新增</button>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button type="button" class="btn secondary" id="customTagAddBtn" style="flex:1;">新增</button>
+          <button type="button" class="btn secondary" id="customTagEditBtn" style="flex:1;">編輯</button>
+        </div>
       </div>
       <div class="field">
         <label>寄出 / 收到 / 珍藏</label>
@@ -821,10 +864,18 @@
         <div class="tag-chip-row" id="editCustomTagChips"></div>
         <div class="tag-combo">
           <button type="button" class="btn secondary tag-combo-toggle" id="editCustomTagComboBtn">選擇已建立的標籤 ▾</button>
-          <div class="tag-combo-menu" id="editCustomTagComboMenu" style="display:none;"></div>
+          <div class="tag-combo-menu" id="editCustomTagComboMenu" style="display:none;">
+            <div class="tag-combo-search-row">
+              <input type="text" class="tag-combo-search" placeholder="搜尋標籤...">
+            </div>
+            <div class="tag-combo-list"></div>
+          </div>
         </div>
         <input type="text" id="editCustomTagInput" placeholder="輸入標籤">
-        <button type="button" class="btn secondary" id="editCustomTagAddBtn" style="margin-top:8px;">新增</button>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button type="button" class="btn secondary" id="editCustomTagAddBtn" style="flex:1;">新增</button>
+          <button type="button" class="btn secondary" id="editCustomTagEditBtn" style="flex:1;">編輯</button>
+        </div>
       </div>
       <div class="field">
         <label>寄出 / 收到 / 珍藏</label>
@@ -902,6 +953,7 @@
   const filterCustomTagComboMenu = document.getElementById('filterCustomTagComboMenu');
   const filterCustomTagInput = document.getElementById('filterCustomTagInput');
   const filterCustomTagAddBtn = document.getElementById('filterCustomTagAddBtn');
+  const filterCustomTagEditBtn = document.getElementById('filterCustomTagEditBtn');
 
   const addModalBackdrop = document.getElementById('addModalBackdrop');
   const addForm = document.getElementById('addForm');
@@ -924,6 +976,7 @@
   const customTagComboBtn = document.getElementById('customTagComboBtn');
   const customTagComboMenu = document.getElementById('customTagComboMenu');
   const customTagAddBtn = document.getElementById('customTagAddBtn');
+  const customTagEditBtn = document.getElementById('customTagEditBtn');
   const nameFieldWrap = document.getElementById('nameFieldWrap');
   const coordFieldWrap = document.getElementById('coordFieldWrap');
   const nameInput = document.getElementById('nameInput');
@@ -946,6 +999,7 @@
   const editCustomTagComboBtn = document.getElementById('editCustomTagComboBtn');
   const editCustomTagComboMenu = document.getElementById('editCustomTagComboMenu');
   const editCustomTagAddBtn = document.getElementById('editCustomTagAddBtn');
+  const editCustomTagEditBtn = document.getElementById('editCustomTagEditBtn');
   const editNameInput = document.getElementById('editNameInput');
   const editCoordInput = document.getElementById('editCoordInput');
   const editNotesInput = document.getElementById('editNotesInput');
@@ -961,9 +1015,9 @@
   const locationCtrl = makeMultiSelectButtonGroup(locationOptionList, () => renderAllGrid());
   const pikminCtrl = makeMultiSelectButtonGroup(pikminOptionList, () => renderAllGrid());
   const floralCtrl = makeMultiSelectButtonGroup(floralOptionList, () => renderAllGrid());
-  const filterTagCombo = makeTagCombo(filterCustomTagComboBtn, filterCustomTagComboMenu, filterTagCtrl, () => renderAllGrid());
-  const addTagCombo = makeTagCombo(customTagComboBtn, customTagComboMenu, addTagCtrl);
-  const editTagCombo = makeTagCombo(editCustomTagComboBtn, editCustomTagComboMenu, editTagCtrl);
+  const filterTagCombo = makeTagCombo(filterCustomTagComboBtn, filterCustomTagComboMenu, filterTagCtrl, () => renderAllGrid(), filterCustomTagEditBtn);
+  const addTagCombo = makeTagCombo(customTagComboBtn, customTagComboMenu, addTagCtrl, null, customTagEditBtn);
+  const editTagCombo = makeTagCombo(editCustomTagComboBtn, editCustomTagComboMenu, editTagCtrl, null, editCustomTagEditBtn);
 
   let accessToken = null;
   let currentUser = null;
@@ -1073,12 +1127,23 @@
       if (data && data.id) configFileId = data.id;
     }
   }
+  // Returns null (not []) whenever the server's true tag list isn't actually
+  // confirmed — a real "the server has zero tags" and "we don't know" are
+  // very different. configFileId being null here doesn't mean "no config
+  // file exists" (only driveLoadConfig's own query at login can confirm
+  // that) — it may just mean this session hasn't (yet) had a successful
+  // create. Treating either case as [] would make a transient failure, or a
+  // config file this session simply hasn't confirmed yet, silently wipe
+  // every previously-declared tag the next time anything writes.
   async function fetchServerDeclaredTags() {
-    if (!configFileId) return [];
-    const contentRes = await fetch(`${DRIVE_API}/files/${configFileId}?alt=media`, { headers: driveHeaders() });
-    if (!contentRes.ok) return [];
-    const serverConfig = await contentRes.json().catch(() => ({}));
-    return Array.isArray(serverConfig.declaredTags) ? serverConfig.declaredTags : [];
+    if (!configFileId) return null;
+    try {
+      const contentRes = await fetch(`${DRIVE_API}/files/${configFileId}?alt=media`, { headers: driveHeaders() });
+      if (!contentRes.ok) return null;
+      const serverConfig = await contentRes.json().catch(() => null);
+      if (!serverConfig) return null;
+      return Array.isArray(serverConfig.declaredTags) ? serverConfig.declaredTags : [];
+    } catch (e) { return null; }
   }
   // Every write to the config file is queued one at a time (never run
   // concurrently on this device). Without this, two tags declared
@@ -1093,7 +1158,7 @@
   async function driveSaveConfigSerialized() {
     try {
       const serverTags = await fetchServerDeclaredTags();
-      declaredTagsCache = Array.from(new Set([...serverTags, ...declaredTagsCache])).sort();
+      declaredTagsCache = Array.from(new Set([...(serverTags || []), ...declaredTagsCache])).sort();
       await writeConfigTags(declaredTagsCache);
       refreshAllCustomTagUI();
     } catch (e) { /* best-effort sync — the tag still works locally this session either way */ }
@@ -1112,10 +1177,21 @@
     configSaveChain = configSaveChain.then(() => runConfigTagOp(tags => tags.filter(t => t !== tag))).catch(() => {});
     return configSaveChain;
   }
+  function driveRenameDeclaredTagRemote(oldTag, newTag) {
+    configSaveChain = configSaveChain.then(() => runConfigTagOp(tags => {
+      const withoutOld = tags.filter(t => t !== oldTag);
+      return withoutOld.includes(newTag) ? withoutOld : [...withoutOld, newTag];
+    })).catch(() => {});
+    return configSaveChain;
+  }
   async function runConfigTagOp(mutate) {
     try {
       const serverTags = await fetchServerDeclaredTags();
-      declaredTagsCache = mutate(serverTags.slice()).sort();
+      // A failed read falls back to this device's own local cache as the
+      // base instead of an empty list — otherwise a transient network error
+      // would make this operation's write wipe out every other tag.
+      const base = serverTags === null ? declaredTagsCache : serverTags;
+      declaredTagsCache = mutate(base.slice()).sort();
       await writeConfigTags(declaredTagsCache);
       refreshAllCustomTagUI();
     } catch (e) { /* best-effort sync — the tag still works locally this session either way */ }
@@ -1611,27 +1687,84 @@
   // each option (rather than a separate management list) so a tag can be
   // removed from wherever it's being picked. Shared by all three contexts,
   // so declaring or deleting a tag anywhere immediately updates the other two.
-  function makeTagCombo(toggleBtn, menuEl, ctrl, afterPick) {
+  function makeTagCombo(toggleBtn, menuEl, ctrl, afterPick, editBtn) {
+    let mode = 'pick'; // 'pick' = clicking a tag applies it here; 'rename' = clicking a tag starts renaming it
+    let query = '';
+    // The search box lives outside the list container and is never
+    // re-rendered itself — only .tag-combo-list's innerHTML is rebuilt on
+    // every keystroke, so the input never loses focus or cursor position
+    // while the user is typing.
+    const searchInput = menuEl.querySelector('.tag-combo-search');
+    const listEl = menuEl.querySelector('.tag-combo-list');
     function render() {
       const known = getAllKnownCustomTags();
-      menuEl.innerHTML = known.length
-        ? known.map(t => `
+      const q = query.trim().toLowerCase();
+      const filtered = q ? known.filter(t => t.toLowerCase().includes(q)) : known;
+      const hint = mode === 'rename' ? `<div class="tag-combo-hint">點選要重新命名的標籤</div>` : '';
+      const emptyMsg = known.length ? '沒有符合的標籤' : '尚無已建立的標籤';
+      listEl.innerHTML = hint + (filtered.length
+        ? filtered.map(t => `
             <div class="tag-combo-row">
               <button type="button" class="tag-combo-option" data-pick-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>
               <button type="button" class="tag-combo-delete" data-delete-tag="${escapeHtml(t)}" aria-label="刪除標籤">✕</button>
             </div>`).join('')
-        : `<div class="tag-combo-empty">尚無已建立的標籤</div>`;
+        : `<div class="tag-combo-empty">${emptyMsg}</div>`);
     }
-    function open() { render(); menuEl.style.display = ''; }
+    searchInput.addEventListener('input', () => { query = searchInput.value; render(); });
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') e.preventDefault(); // don't let it submit the surrounding add/edit form
+    });
+    function position() {
+      const rect = toggleBtn.getBoundingClientRect();
+      const maxHeight = 260;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUpward = spaceBelow < maxHeight && rect.top > spaceBelow;
+      menuEl.style.left = rect.left + 'px';
+      menuEl.style.width = rect.width + 'px';
+      if (openUpward) {
+        menuEl.style.top = '';
+        menuEl.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+        menuEl.style.maxHeight = Math.min(maxHeight, rect.top - 4) + 'px';
+      } else {
+        menuEl.style.bottom = '';
+        menuEl.style.top = (rect.bottom + 4) + 'px';
+        menuEl.style.maxHeight = Math.min(maxHeight, spaceBelow - 4) + 'px';
+      }
+    }
+    function open(openMode) {
+      mode = openMode || 'pick';
+      query = '';
+      searchInput.value = '';
+      render();
+      position();
+      menuEl.style.display = '';
+      searchInput.focus();
+    }
     function close() { menuEl.style.display = 'none'; }
     toggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (menuEl.style.display === 'none') open(); else close();
+      if (menuEl.style.display === 'none' || mode !== 'pick') open('pick'); else close();
     });
+    if (editBtn) {
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (menuEl.style.display === 'none' || mode !== 'rename') open('rename'); else close();
+      });
+    }
+    // position: fixed means the menu won't track a scroll/resize on its own
+    // — rather than continuously repositioning it, just close it, since a
+    // scroll or resize means the toggle button itself has likely moved.
+    window.addEventListener('scroll', () => { if (menuEl.style.display !== 'none') close(); }, true);
+    window.addEventListener('resize', () => { if (menuEl.style.display !== 'none') close(); });
     menuEl.addEventListener('click', (e) => {
       const pickBtn = e.target.closest('[data-pick-tag]');
       if (pickBtn) {
         const v = pickBtn.getAttribute('data-pick-tag');
+        if (mode === 'rename') {
+          close();
+          startRenameTag(v);
+          return;
+        }
         const current = ctrl.get();
         if (!current.includes(v)) ctrl.set([...current, v]);
         close();
@@ -1678,6 +1811,41 @@
     filterTagCtrl.set(filterTagCtrl.get().filter(t => t !== tag));
     addTagCtrl.set(addTagCtrl.get().filter(t => t !== tag));
     editTagCtrl.set(editTagCtrl.get().filter(t => t !== tag));
+    renderAllGrid();
+  }
+  function startRenameTag(oldTag) {
+    const input = prompt(`將標籤「${oldTag}」重新命名為:`, oldTag);
+    if (input === null) return; // cancelled
+    const newTag = input.trim();
+    if (!newTag || newTag === oldTag) return;
+    renameDeclaredTag(oldTag, newTag);
+  }
+  // Renaming is delete-old + add-new as a single operation, cascaded through
+  // the declared list, every postcard currently using the old name, and any
+  // control that currently has the old name selected — same reasoning as
+  // deleteDeclaredTag, since a rename that only touched the declared list
+  // would leave every postcard still showing the old tag name.
+  async function renameDeclaredTag(oldTag, newTag) {
+    declaredTagsCache = declaredTagsCache.filter(t => t !== oldTag);
+    if (!declaredTagsCache.includes(newTag)) declaredTagsCache.push(newTag);
+    refreshAllCustomTagUI();
+    await driveRenameDeclaredTagRemote(oldTag, newTag);
+    const affected = allPostcardsCache.filter(p => (p.customTags || []).includes(oldTag));
+    for (const pc of affected) {
+      const newTags = Array.from(new Set(pc.customTags.map(t => t === oldTag ? newTag : t)));
+      try {
+        await driveUpdatePostcardMeta(pc.id, {
+          name: pc.name, location: pc.location, pikmin: pc.pikmin, floral: pc.floral,
+          sent: pc.sent, received: pc.received, favorite: pc.favorite,
+          customTag: newTags.join('|'), coords: pc.coords, notes: pc.notes
+        });
+        pc.customTags = newTags;
+      } catch (e) { /* leave this one be — it'll get cleaned up on a future edit/reconcile */ }
+    }
+    [filterTagCtrl, addTagCtrl, editTagCtrl].forEach(ctrl => {
+      const current = ctrl.get();
+      if (current.includes(oldTag)) ctrl.set(Array.from(new Set(current.map(t => t === oldTag ? newTag : t))));
+    });
     renderAllGrid();
   }
 
