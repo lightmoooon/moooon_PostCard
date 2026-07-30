@@ -1754,7 +1754,15 @@
     // position: fixed means the menu won't track a scroll/resize on its own
     // — rather than continuously repositioning it, just close it, since a
     // scroll or resize means the toggle button itself has likely moved.
-    window.addEventListener('scroll', () => { if (menuEl.style.display !== 'none') close(); }, true);
+    // Scrolling the menu's own tag list also fires a (capture-phase-only,
+    // non-bubbling) scroll event targeted at the menu itself — excluding
+    // that target is what lets the list actually be scrolled at all, rather
+    // than closing itself the instant a scroll/swipe starts.
+    window.addEventListener('scroll', (e) => {
+      if (menuEl.style.display === 'none') return;
+      if (e.target === menuEl || (e.target.nodeType === 1 && menuEl.contains(e.target))) return;
+      close();
+    }, true);
     window.addEventListener('resize', () => { if (menuEl.style.display !== 'none') close(); });
     menuEl.addEventListener('click', (e) => {
       const pickBtn = e.target.closest('[data-pick-tag]');
