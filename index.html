@@ -149,6 +149,25 @@
     background: var(--bg);
     padding-top: 4px;
   }
+  .search-row {
+    position: sticky;
+    top: var(--top-controls-h, 56px);
+    z-index: 25;
+    background: var(--bg);
+    padding-bottom: 10px;
+    margin-top: -6px;
+  }
+  .search-row input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+  }
   .icon-btn {
     font-size: 18px;
     line-height: 1;
@@ -173,7 +192,7 @@
        instead of sitting beside it. Tapping ☰ again closes it. */
     #filterSidebarCard {
       position: fixed;
-      top: var(--top-controls-h, 56px);
+      top: var(--search-row-h, 96px);
       left: 0;
       bottom: 0;
       z-index: 24;
@@ -651,6 +670,9 @@
         <button type="button" class="toggle-btn" id="filterUneditedBtn">未編輯</button>
       </div>
     </div>
+    <div class="search-row">
+      <input type="text" id="postcardSearchInput" placeholder="搜尋名稱、地點、標籤、備註...">
+    </div>
 
     <div class="content-row">
     <div class="card" id="filterSidebarCard" style="display:none">
@@ -957,6 +979,8 @@
   const allGrid = document.getElementById('allGrid');
   const allSection = document.getElementById('allSection');
   const topControls = document.querySelector('.top-controls');
+  const searchRow = document.querySelector('.search-row');
+  const postcardSearchInput = document.getElementById('postcardSearchInput');
   const favToggleBtn = document.getElementById('favToggleBtn');
   const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
   const filterSidebar = document.getElementById('filterSidebar');
@@ -1695,6 +1719,18 @@
     return !p.location && !p.pikmin && !p.floral && !p.name && !p.coords && !p.notes &&
       !(p.customTags && p.customTags.length) && !p.sent && !p.received && !p.favorite;
   }
+  // Plain-text search across every free-text field on a postcard — name,
+  // location/pikmin/獲取方式, custom tags, and notes — so one search box
+  // covers "which postcard was that again" regardless of which field the
+  // user actually remembers.
+  let searchQuery = '';
+  function matchesSearch(p, query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    const haystack = [p.name, p.location, p.pikmin, p.floral, p.notes, ...(p.customTags || [])]
+      .filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(q);
+  }
   function applyFilters(list) {
     const fLoc = locationCtrl.get(), fPik = pikminCtrl.get(), fFlo = floralCtrl.get();
     const fSent = filterSentBtn.classList.contains('active');
@@ -1709,7 +1745,8 @@
       (!fSent || p.sent) &&
       (!fReceived || p.received) &&
       (!fUnedited || isUnedited(p)) &&
-      (!fCustomTags.length || fCustomTags.some(t => (p.customTags || []).includes(t)))
+      (!fCustomTags.length || fCustomTags.some(t => (p.customTags || []).includes(t))) &&
+      matchesSearch(p, searchQuery)
     );
   }
 
@@ -1949,8 +1986,13 @@
     topControlsSyncQueued = true;
     requestAnimationFrame(() => {
       topControlsSyncQueued = false;
-      const bottom = Math.max(0, topControls.getBoundingClientRect().bottom);
-      document.documentElement.style.setProperty('--top-controls-h', bottom + 'px');
+      const topBottom = Math.max(0, topControls.getBoundingClientRect().bottom);
+      document.documentElement.style.setProperty('--top-controls-h', topBottom + 'px');
+      // The search row stacks sticky right below top-controls (using the
+      // var just set above) — read its bottom edge only after that applies,
+      // so the mobile sidebar can clear both rows, not just the first one.
+      const searchBottom = Math.max(0, searchRow.getBoundingClientRect().bottom);
+      document.documentElement.style.setProperty('--search-row-h', searchBottom + 'px');
     });
   }
   syncTopControlsHeight();
@@ -2488,8 +2530,14 @@
     filterUneditedBtn.classList.remove('active');
     onlyFavorites = false;
     favToggleBtn.classList.remove('active');
+    searchQuery = '';
+    postcardSearchInput.value = '';
     renderAllGrid();
   }
+  postcardSearchInput.addEventListener('input', () => {
+    searchQuery = postcardSearchInput.value;
+    renderAllGrid();
+  });
 
   addBtn.addEventListener('click', openAddModal);
   document.addEventListener('click', (e) => {
